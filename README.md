@@ -4,14 +4,16 @@ Premium rebuild of Sangam with phone+OTP auth, 3D animated UI, Firebase-ready ba
 
 ## What's new vs the original Sangam app
 
-- **Real login** — phone number + OTP via Firebase Auth (with demo PIN shortcuts for quick testing)
+- **Configurable for any shop** — set your shop name, owner, and location on first launch; the whole app personalises to your store
+- **Owner & staff modes** — full owner view plus a read-only balance lookup for staff
 - **Animated splash screen** — 3D rotating Sangam logo with particle background
-- **3-slide onboarding** — custom-painted illustrations, parallax background
+- **3-slide onboarding + guided store setup** — start fresh or with sample data
 - **3D tilt dashboard card** — uses your phone's accelerometer for a parallax effect on the hero card
 - **Live donut chart** — UPI breakdown visualised with fl_chart
 - **Smooth animations everywhere** — flutter_animate powers fade/slide/scale transitions on every screen
 - **Premium design system** — gradient cards, glass-morphism, custom typography (Poppins)
-- **All 10 screens fully wired** — Splash → Onboarding → Login → OTP → Dashboard → Add → Customers → Customer Detail → Report → Staff → Settings → SMS Queue → Photo Import
+- **Optional phone + OTP login** — via Firebase Auth when configured (app is fully offline otherwise)
+- **All screens fully wired** — Splash → Onboarding → Store Setup → Login → Dashboard → Add → Customers → Customer Detail → Report → Staff → Settings → SMS Queue → Photo Import
 
 ## Quick start (works offline, zero setup)
 
@@ -20,7 +22,20 @@ flutter pub get
 flutter run
 ```
 
-The app works immediately with local demo data — no Firebase required to test it. On the login screen, tap **"Owner (1234)"** or **"Staff (5678)"** under "Demo access" to skip phone verification entirely.
+The app works immediately — no Firebase or account required.
+
+### First launch
+
+1. A 3-slide intro explains what Sangam does.
+2. **Set up your shop** — enter your shop name (and optionally owner name and
+   location). This personalises the whole app, so **any shop owner can use it**.
+3. Choose how to begin:
+   - **Start fresh** — an empty ledger for real use.
+   - **Try with sample data** — demo customers and transactions to explore.
+
+You can edit your shop details, load demo data, or **clear all data** anytime
+from **Settings**. On the login screen, **Quick access → Owner / Staff** lets you
+switch between the full owner view and the read-only staff lookup.
 
 ## Enabling real phone + OTP login
 
@@ -92,18 +107,56 @@ lib/
 
 ## Demo data
 
-Seeded automatically on first launch — 7 customers (Ramesh, Kavita, Mohan, Sunita, Raju, Priya, Vikram) with realistic transaction history matching real-world kirana store patterns. Reset anytime from Settings → "Reset to demo data".
+Demo data is **opt-in**. Choose "Try with sample data" during setup, or load it
+later from **Settings → Data → Load demo data** (7 sample customers with
+realistic transaction history). Real shops should choose "Start fresh".
 
-## Build release APK
+## Build for the Play Store
+
+### 1. Create a release keystore (one time)
 
 ```bash
-flutter build apk --release
+keytool -genkey -v -keystore ~/sangam-release.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias sangam
 ```
 
-Output: `build/app/outputs/flutter-apk/app-release.apk`
+### 2. Add signing config
 
-## Known limitations (Phase 2 roadmap)
+Copy `android/key.properties.example` to `android/key.properties` and fill in
+your keystore path and passwords. This file is git-ignored and must never be
+committed. If it is absent, release builds fall back to debug signing so the
+project still builds locally.
 
-- SMS auto-read currently shows demo data — native Android `READ_SMS` MethodChannel integration is the next step (code structure already in `sms_service.dart`)
-- Firebase sync requires `flutterfire configure` — app works fully offline without it
-- Push notifications need Firebase Cloud Messaging configured to fire from a backend (Cloud Functions)
+### 3. Build
+
+```bash
+# App Bundle (recommended for Play Store upload)
+flutter build appbundle --release
+# Output: build/app/outputs/bundle/release/app-release.aab
+
+# Or a release APK for sideloading
+flutter build apk --release
+# Output: build/app/outputs/flutter-apk/app-release.apk
+```
+
+Release builds use R8 code shrinking and resource shrinking (see
+`android/app/proguard-rules.pro`).
+
+### Store listing checklist
+
+- **Package name:** `com.sangam.app`
+- **Privacy policy:** host [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) at a public
+  URL and add it in the Play Console (update the contact email first).
+- **Permissions:** Camera/Photos (khata import) and Notifications only. The app
+  deliberately requests **no SMS, contacts, or location** permissions.
+- **Data safety form:** ledger data stays on-device; photos are only sent to
+  Anthropic if the user enables AI import with their own key.
+
+## Known limitations / roadmap
+
+- **UPI SMS auto-detection** is shown as a preview with sample entries. True
+  background SMS reading is intentionally not enabled because Google Play
+  restricts SMS permissions; a future version may use a user-initiated import.
+- **Firebase sync / phone login** requires running `flutterfire configure` and
+  uncommenting the init in `lib/main.dart`. The default build is fully offline.
+- **Push notifications** need Firebase Cloud Messaging configured from a backend.

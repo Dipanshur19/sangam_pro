@@ -58,19 +58,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     if (!mounted) return;
 
-    // Check auth - skip if Firebase not initialized
-    try {
-      final user = ref.read(authStateProvider).value;
-      if (user != null) {
-        if (mounted) context.go('/dashboard');
-        return;
-      }
-    } catch (e) {
-      // Firebase not initialized - continue to onboarding/login
+    // Route based on whether the shop has been set up yet.
+    final profile = await ref.read(localSourceProvider).getStoreProfile();
+    if (profile.isConfigured) {
+      if (mounted) context.go('/dashboard');
+      return;
     }
-    
+
     final onboarded = await ref.read(onboardedProvider.future);
-    if (mounted) context.go(onboarded ? '/login' : '/onboarding');
+    if (mounted) context.go(onboarded ? '/store-setup' : '/onboarding');
   }
 
   @override

@@ -8,7 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/entities/transaction.dart' as entity;
 import '../../domain/entities/customer.dart';
 import '../../domain/entities/sms_entry.dart';
-import '../../core/constants.dart';
+import '../../domain/entities/store_profile.dart';
 
 // ── Auth Service ──────────────────────────────────────
 class AuthService {
@@ -77,17 +77,51 @@ class LocalSource {
   static const _custsKey  = 'sangam_custs';
   static const _txnsKey   = 'sangam_txns';
   static const _seededKey = 'sangam_seeded_v2';
+  static const _profileKey = 'sangam_store_profile';
   static const _uuid = Uuid();
 
   SharedPreferences? _p;
   Future<SharedPreferences> get _prefs async => _p ??= await SharedPreferences.getInstance();
 
+  /// Ensures local storage is ready. Does NOT auto-seed demo data anymore —
+  /// new shop owners choose between a fresh start and demo data during setup.
   Future<void> ensureSeeded() async {
+    await _prefs;
+  }
+
+  // ── Store profile ──
+  Future<StoreProfile> getStoreProfile() async {
     final p = await _prefs;
-    if (p.getBool(_seededKey) == true) return;
+    final raw = p.getString(_profileKey);
+    if (raw == null) return StoreProfile.empty;
+    return StoreProfile.fromMap(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> saveStoreProfile(StoreProfile profile) async {
+    final p = await _prefs;
+    await p.setString(_profileKey, jsonEncode(profile.toMap()));
+  }
+
+  /// Seed demo customers + transactions (used for "Try with demo data").
+  Future<void> seedDemoData() async {
+    final p = await _prefs;
     await _saveCustomers(_seedCustomers());
     await _saveTransactions(_seedTransactions());
     await p.setBool(_seededKey, true);
+  }
+
+  /// Start with an empty ledger (used for a real shop's first launch).
+  Future<void> startFresh() async {
+    final p = await _prefs;
+    await _saveCustomers([]);
+    await _saveTransactions([]);
+    await p.setBool(_seededKey, true);
+  }
+
+  /// Erase all transactions and customers but keep the store profile.
+  Future<void> clearAllData() async {
+    await _saveCustomers([]);
+    await _saveTransactions([]);
   }
 
   List<Customer> _seedCustomers() => [
@@ -184,7 +218,7 @@ class LocalSource {
     return DailyTotals(paytm:paytm, gpay:gpay, phonePe:phonePe, cash:cash, creditOut:creditOut, creditIn:creditIn, txnCount:today.length);
   }
 
-  Future<List<OverdueCustomer>> getOverdueCustomers() async {
+  Future<List<OverdueCustomer>> getOverdueCustomers({int dueDays = 7}) async {
     final custs = await getCustomers();
     final txns  = await getTransactions();
     final result = <OverdueCustomer>[];
@@ -196,16 +230,14 @@ class LocalSource {
         ..sort((a,b) => b.date.compareTo(a.date));
       if (lastCredit.isEmpty) continue;
       final days = DateTime.now().difference(lastCredit.first.date).inDays;
-      result.add(OverdueCustomer(customerId:c.id, customerName:c.name, phone:c.phone, balance:bal, daysOverdue:days-7));
+      result.add(OverdueCustomer(customerId:c.id, customerName:c.name, phone:c.phone, balance:bal, daysOverdue:days-dueDays));
     }
     result.sort((a,b) => b.daysOverdue.compareTo(a.daysOverdue));
     return result;
   }
 
   Future<void> resetToDemo() async {
-    final p = await _prefs;
-    await p.remove(_seededKey);
-    await ensureSeeded();
+    await seedDemoData();
   }
 
   bool _sameDay(DateTime a, DateTime b) => a.year==b.year && a.month==b.month && a.day==b.day;
@@ -221,6 +253,29 @@ class LocalSource {
 final localSourceProvider = Provider<LocalSource>((_) => LocalSource());
 
 final appInitProvider = FutureProvider<void>((ref) => ref.watch(localSourceProvider).ensureSeeded());
+
+// ── Store profile ──
+class StoreProfileNotifier extends StateNotifier<StoreProfile> {
+  final LocalSource _source;
+  StoreProfileNotifier(this._source) : super(StoreProfile.empty) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    state = await _source.getStoreProfile();
+  }
+
+  Future<void> save(StoreProfile profile) async {
+    await _source.saveStoreProfile(profile);
+    state = profile;
+  }
+
+  Future<void> reload() => _load();
+}
+
+final storeProfileProvider = StateNotifierProvider<StoreProfileNotifier, StoreProfile>(
+  (ref) => StoreProfileNotifier(ref.watch(localSourceProvider)),
+);
 
 final _txnStreamCtrl = StreamProvider<List<entity.Transaction>>((ref) async* {
   await ref.watch(appInitProvider.future);
@@ -268,7 +323,8 @@ final customerTransactionsProvider = FutureProvider.family<List<entity.Transacti
 
 final overdueCustomersProvider = FutureProvider<List<OverdueCustomer>>((ref) {
   ref.watch(_txnStreamCtrl);
-  return ref.read(localSourceProvider).getOverdueCustomers();
+  final dueDays = ref.watch(storeProfileProvider).creditDueDays;
+  return ref.read(localSourceProvider).getOverdueCustomers(dueDays: dueDays);
 });
 
 final smsQueueProvider = StateNotifierProvider<_SmsQueueNotifier, List<SmsEntry>>((_) => _SmsQueueNotifier());

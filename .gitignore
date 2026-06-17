@@ -11,3 +11,9 @@ android/local.properties
 android/app/google-services.json
 google-services.json
 GoogleService-Info.plist
+
+
+# ── Release signing secrets — never commit these ──
+android/key.properties
+*.jks
+*.keystore

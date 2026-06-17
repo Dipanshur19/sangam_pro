@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -18,25 +19,41 @@ class DashboardScreen extends ConsumerStatefulWidget {
 class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerProviderStateMixin {
   late AnimationController _counterCtrl;
   double _tiltX = 0, _tiltY = 0;
+  StreamSubscription? _accelSub;
 
   @override
   void initState() {
     super.initState();
     _counterCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..forward();
-    // Gyroscope for 3D tilt
-    accelerometerEventStream().listen((e) {
-      if (mounted) setState(() { _tiltX = (e.y / 9.8).clamp(-0.3, 0.3); _tiltY = (-e.x / 9.8).clamp(-0.3, 0.3); });
-    });
+    // Accelerometer for subtle 3D tilt. Guarded so it never crashes on
+    // devices/emulators without sensors.
+    try {
+      _accelSub = accelerometerEventStream().listen(
+        (e) {
+          if (mounted) setState(() { _tiltX = (e.y / 9.8).clamp(-0.3, 0.3); _tiltY = (-e.x / 9.8).clamp(-0.3, 0.3); });
+        },
+        onError: (_) {},
+        cancelOnError: false,
+      );
+    } catch (_) {/* sensors unavailable — tilt stays flat */}
   }
 
   @override
-  void dispose() { _counterCtrl.dispose(); super.dispose(); }
+  void dispose() { _accelSub?.cancel(); _counterCtrl.dispose(); super.dispose(); }
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
 
   @override
   Widget build(BuildContext context) {
     final totalsAsync = ref.watch(todayTotalsProvider);
     final overdueAsync = ref.watch(overdueCustomersProvider);
     final txnsAsync = ref.watch(transactionsStreamProvider);
+    final store = ref.watch(storeProfileProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -49,12 +66,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: Row(children: [
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Dashboard', style: AppTextStyles.labelCaps.copyWith(color: AppColors.saffron)),
-                  Text('Smriti General Store', style: AppTextStyles.h4),
-                ]),
-                const Spacer(),
-                _IconBtn(Icons.inbox_outlined, () => context.push('/sms-queue'), badge: 3),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(_greeting(), style: AppTextStyles.labelCaps.copyWith(color: AppColors.saffron)),
+                    Text(store.name.isEmpty ? 'My Store' : store.name,
+                        style: AppTextStyles.h4, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ]),
+                ),
+                _IconBtn(Icons.inbox_outlined, () => context.push('/sms-queue'),
+                    badge: ref.watch(smsQueueProvider).where((e) => e.status == 'pending').length),
                 const SizedBox(width: 8),
                 _IconBtn(Icons.notifications_outlined, () {}),
                 const SizedBox(width: 8),
@@ -159,12 +179,32 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
             error: (e, _) => const SizedBox(),
             data: (txns) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _GlassCard(
-                child: Column(children: txns.take(5).toList().asMap().entries.map((e) =>
-                  _TxnRow(txn: e.value, isLast: e.key == txns.take(5).length - 1)
-                    .animate(delay: Duration(milliseconds: 500 + e.key * 60)).fadeIn(duration: 400.ms)
-                ).toList()),
-              ),
+              child: txns.isEmpty
+                ? _GlassCard(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+                      child: Column(children: [
+                        const Icon(Icons.receipt_long_outlined, size: 40, color: AppColors.border),
+                        const SizedBox(height: 12),
+                        Text('No transactions yet', style: AppTextStyles.bodyMd),
+                        const SizedBox(height: 4),
+                        Text('Tap the + button to record your first sale or udhar.',
+                            textAlign: TextAlign.center, style: AppTextStyles.caption),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => context.push('/add'),
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: const Text('Add transaction'),
+                        ),
+                      ]),
+                    ),
+                  )
+                : _GlassCard(
+                    child: Column(children: txns.take(5).toList().asMap().entries.map((e) =>
+                      _TxnRow(txn: e.value, isLast: e.key == txns.take(5).length - 1)
+                        .animate(delay: Duration(milliseconds: 500 + e.key * 60)).fadeIn(duration: 400.ms)
+                    ).toList()),
+                  ),
             ),
           ),
 

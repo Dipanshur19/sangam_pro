@@ -43,7 +43,9 @@ class _S extends ConsumerState<CustomerDetailScreen> {
   }
 
   Future<void> _whatsapp(String name, String phone, double balance) async {
-    final msg = Uri.encodeComponent('Namaste $name ji,\n\nAapka Smriti General Store mein ₹${balance.toStringAsFixed(0)} baaki hai.\n\nKripya jaldi payment karein.\n\n- Smriti General Store');
+    final storeName = ref.read(storeProfileProvider).name;
+    final shop = storeName.isEmpty ? 'our store' : storeName;
+    final msg = Uri.encodeComponent('Namaste $name ji,\n\nAapka $shop mein \u20b9${balance.toStringAsFixed(0)} baaki hai.\n\nKripya jaldi payment karein.\n\n- $shop');
     final url = Uri.parse('https://wa.me/91$phone?text=$msg');
     if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
   }

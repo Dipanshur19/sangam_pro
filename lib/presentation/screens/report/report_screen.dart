@@ -14,12 +14,13 @@ class ReportScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final totalsAsync = ref.watch(todayTotalsProvider);
     final overdueAsync = ref.watch(overdueCustomersProvider);
+    final store = ref.watch(storeProfileProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text('End-of-Day Report'), leading: BackButton(onPressed: () => context.go('/dashboard')),
         actions: [totalsAsync.when(loading: ()=>const SizedBox(), error: (_,__)=>const SizedBox(),
           data: (t) => IconButton(icon: const Icon(Icons.share_outlined), onPressed: () => Share.share(
-            '*Sangam Daily Report*\n\nCollected: ₹${t.totalIn.toStringAsFixed(0)}\nPaytm: ₹${t.paytm.toStringAsFixed(0)}\nGPay: ₹${t.gpay.toStringAsFixed(0)}\nPhonePe: ₹${t.phonePe.toStringAsFixed(0)}\nCash: ₹${t.cash.toStringAsFixed(0)}\n\n_Powered by Sangam_')))]),
+            '*${store.name.isEmpty ? 'Sangam' : store.name} — Daily Report*\n\nCollected: \u20b9${t.totalIn.toStringAsFixed(0)}\nPaytm: \u20b9${t.paytm.toStringAsFixed(0)}\nGPay: \u20b9${t.gpay.toStringAsFixed(0)}\nPhonePe: \u20b9${t.phonePe.toStringAsFixed(0)}\nCash: \u20b9${t.cash.toStringAsFixed(0)}\nUdhar given: \u20b9${t.creditOut.toStringAsFixed(0)}\n\n_Powered by Sangam_')))]),
       body: totalsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.saffron)),
         error: (e,_) => Center(child: Text('$e')),

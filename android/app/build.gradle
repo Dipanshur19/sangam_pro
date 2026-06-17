@@ -14,6 +14,18 @@ if (localPropertiesFile.exists()) {
 def flutterVersionCode = localProperties.getProperty('flutter.versionCode') ?: '1'
 def flutterVersionName = localProperties.getProperty('flutter.versionName') ?: '1.0'
 
+// Release signing config. Provide a `key.properties` file in android/ to sign
+// release builds for the Play Store. If it is absent, release builds fall back
+// to debug signing so the project still builds locally.
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file('key.properties')
+def hasKeystore = keystorePropertiesFile.exists()
+if (hasKeystore) {
+    keystorePropertiesFile.withReader('UTF-8') { reader ->
+        keystoreProperties.load(reader)
+    }
+}
+
 android {
     namespace "com.sangam.app"
     compileSdk 36
@@ -31,18 +43,32 @@ android {
 
     defaultConfig {
         applicationId "com.sangam.app"
-        minSdkVersion flutter.minSdkVersion
+        minSdkVersion 23
         targetSdk 36
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true
     }
 
+    signingConfigs {
+        if (hasKeystore) {
+            release {
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+                storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
+                storePassword keystoreProperties['storePassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
-            minifyEnabled false
-            shrinkResources false
+            // Use the real release keystore when available, otherwise debug keys
+            // so the project still assembles without a keystore present.
+            signingConfig hasKeystore ? signingConfigs.release : signingConfigs.debug
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
             debuggable true

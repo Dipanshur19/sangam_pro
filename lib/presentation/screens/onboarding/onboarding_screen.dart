@@ -20,7 +20,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
   final _slides = [
     _Slide(
       title: 'One store.\nFour apps.\nTwo hours wasted.',
-      subtitle: 'Smriti spends 2 hours every night reconciling Paytm, GPay, PhonePe, Khatta and pen-paper. Manually.',
+      subtitle: 'Most shop owners spend hours every night reconciling Paytm, GPay, PhonePe, khata and pen-paper. Manually.',
       color: AppColors.saffron,
       accent: AppColors.saffronLight,
       painter: _ConfusedPainter(),
@@ -54,7 +54,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
   Future<void> _finish() async {
     final p = await SharedPreferences.getInstance();
     await p.setBool('sangam_onboarded', true);
-    if (mounted) context.go('/login');
+    if (mounted) context.go('/store-setup');
   }
 
   @override

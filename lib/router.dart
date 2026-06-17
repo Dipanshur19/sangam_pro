@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'presentation/screens/splash/splash_screen.dart';
 import 'presentation/screens/onboarding/onboarding_screen.dart';
+import 'presentation/screens/store_setup/store_setup_screen.dart';
 import 'presentation/screens/auth/login_screen.dart';
 import 'presentation/screens/dashboard/dashboard_screen.dart';
 import 'presentation/screens/add_transaction/add_transaction_screen.dart';
@@ -18,6 +19,7 @@ GoRouter buildRouter() => GoRouter(
   routes: [
     GoRoute(path: '/splash',       builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/onboarding',   builder: (_, __) => const OnboardingScreen()),
+    GoRoute(path: '/store-setup',  builder: (_, __) => const StoreSetupScreen()),
     GoRoute(path: '/login',        builder: (_, __) => const LoginScreen()),
     GoRoute(path: '/otp',          builder: (_, state) => OtpScreen(phone: state.extra as String? ?? '')),
     GoRoute(path: '/dashboard',    builder: (_, __) => const DashboardScreen()),

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -124,12 +125,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> with SingleTickerProv
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Column(children: [
-                  Text('Demo access', style: AppTextStyles.label.copyWith(color: AppColors.text3)),
+                  Text('Quick access', style: AppTextStyles.label.copyWith(color: AppColors.text3)),
                   const SizedBox(height: 8),
                   Row(children: [
-                    Expanded(child: _DemoBtn(label: 'Owner\n(1234)', onTap: () => context.go('/dashboard'))),
+                    Expanded(child: _DemoBtn(label: 'Owner', onTap: () => context.go('/dashboard'))),
                     const SizedBox(width: 10),
-                    Expanded(child: _DemoBtn(label: 'Staff\n(5678)', onTap: () => context.go('/staff'))),
+                    Expanded(child: _DemoBtn(label: 'Staff', onTap: () => context.go('/staff'))),
                   ]),
                 ]),
               ).animate(delay: 650.ms).fadeIn(duration: 500.ms),
@@ -156,8 +157,8 @@ class _OtpScreenState extends ConsumerState<OtpScreen> with TickerProviderStateM
   bool _loading = false;
   bool _success = false;
   int _resendSeconds = 30;
+  int _timerGen = 0;
   late AnimationController _successCtrl;
-  late AnimationController _timerCtrl;
 
   @override
   void initState() {
@@ -167,15 +168,17 @@ class _OtpScreenState extends ConsumerState<OtpScreen> with TickerProviderStateM
   }
 
   void _startTimer() async {
-    _timerCtrl = AnimationController(vsync: this, duration: const Duration(seconds: 30))..forward();
+    final gen = ++_timerGen;
+    setState(() => _resendSeconds = 30);
     for (int i = 30; i >= 0; i--) {
       await Future.delayed(const Duration(seconds: 1));
-      if (mounted) setState(() => _resendSeconds = i);
+      if (!mounted || gen != _timerGen) return;
+      setState(() => _resendSeconds = i);
     }
   }
 
   @override
-  void dispose() { _successCtrl.dispose(); _timerCtrl.dispose(); super.dispose(); }
+  void dispose() { _successCtrl.dispose(); super.dispose(); }
 
   Future<void> _verify() async {
     if (_otp.length != 6) return;
@@ -272,9 +275,13 @@ class _OtpScreenState extends ConsumerState<OtpScreen> with TickerProviderStateM
             ? Text('Resend OTP in $_resendSeconds seconds', style: AppTextStyles.bodySm.copyWith(color: AppColors.text3))
             : GestureDetector(
                 onTap: () async {
-                  await ref.read(authServiceProvider).sendOtp('+91${widget.phone}');
-                  setState(() => _resendSeconds = 30);
-                  _startTimer();
+                  try {
+                    await ref.read(authServiceProvider).sendOtp('+91${widget.phone}');
+                    _startTimer();
+                    if (mounted) context.showSnack('OTP resent');
+                  } catch (e) {
+                    if (mounted) context.showSnack('Could not resend OTP', isError: true);
+                  }
                 },
                 child: Text('Resend OTP', style: AppTextStyles.bodySm.copyWith(color: AppColors.saffron, fontWeight: FontWeight.w600)),
               )),
@@ -321,14 +328,24 @@ class _MiniLogoPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2, cy = size.height / 2;
-    final r = size.width * 0.25;
-    final paint = Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = size.width * 0.07..strokeCap = StrokeCap.round;
+    final r = size.width * 0.28;
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = size.width * 0.07
+      ..strokeCap = StrokeCap.round;
+    // Three converging arcs — Paytm, GPay, PhonePe = Sangam.
     for (int i = 0; i < 3; i++) {
-      final angle = (i * 2 * 3.14159 / 3) + (t * 2 * 3.14159 * 0.25);
-      canvas.drawArc(Rect.fromCircle(center: Offset(cx + 3.14159 * 0.35 * r * (i == 0 ? -1 : i == 1 ? 1 : 0), cy + 3.14159 * 0.35 * r * (i == 2 ? 1 : -0.5 + i * 0.5)), radius: r * 0.65), angle - 3.14159 * 0.5, 3.14159 * 1.0, false, paint);
+      final angle = (i * 2 * math.pi / 3) + (t * 2 * math.pi * 0.25);
+      final center = Offset(cx + (r * 0.35) * math.cos(angle), cy + (r * 0.35) * math.sin(angle));
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: r * 0.65),
+        angle - math.pi / 2, math.pi, false, paint,
+      );
     }
-    canvas.drawCircle(Offset(cx, cy), size.width * 0.07, Paint()..color = Colors.white);
+    canvas.drawCircle(Offset(cx, cy), size.width * 0.08, Paint()..color = Colors.white);
   }
+
   @override
   bool shouldRepaint(_MiniLogoPainter old) => old.t != t;
 }
@@ -353,7 +370,7 @@ class _GradientButtonState extends State<_GradientButton> with SingleTickerProvi
       duration: const Duration(milliseconds: 200),
       height: 58,
       decoration: BoxDecoration(
-        gradient: widget.onTap != null ? AppGradients.saffron : const LinearGradient(colors: [Color(0xFFCCC), Color(0xFFBBB)]),
+        gradient: widget.onTap != null ? AppGradients.saffron : const LinearGradient(colors: [Color(0xFFCCCCCC), Color(0xFFBBBBBB)]),
         borderRadius: BorderRadius.circular(AppRadius.xl),
         boxShadow: widget.onTap != null ? AppShadows.saffron : [],
       ),

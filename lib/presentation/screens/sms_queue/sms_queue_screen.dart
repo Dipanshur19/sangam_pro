@@ -38,9 +38,31 @@ class _S extends ConsumerState<SmsQueueScreen> {
         ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
             const Icon(Icons.mark_email_read_outlined, size: 48, color: AppColors.border),
             const SizedBox(height: 12), Text('No pending SMS', style: AppTextStyles.h4),
+            const SizedBox(height: 6),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Text('Detected UPI payments will appear here for you to assign to a customer.',
+                  textAlign: TextAlign.center, style: AppTextStyles.caption),
+            ),
           ]))
-        : ListView.separated(padding: const EdgeInsets.all(20), itemCount: pending.length, separatorBuilder: (_,__) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _SmsTile(entry: pending[i])),
+        : Column(children: [
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: AppColors.infoBg, borderRadius: BorderRadius.circular(AppRadius.md)),
+              child: Row(children: [
+                const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.info),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Preview with sample payments. Assign them to a customer to record.',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.info))),
+              ]),
+            ),
+            Expanded(
+              child: ListView.separated(padding: const EdgeInsets.all(20), itemCount: pending.length, separatorBuilder: (_,__) => const SizedBox(height: 10),
+                  itemBuilder: (_, i) => _SmsTile(entry: pending[i])),
+            ),
+          ]),
     );
   }
 }
