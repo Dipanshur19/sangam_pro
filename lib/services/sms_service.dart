@@ -62,6 +62,37 @@ class SmsService {
       status: 'pending',
     );
   }
+
+  /// Get demo SMS list for testing
+  static List<SmsEntry> getDemoSmsList() {
+    final now = DateTime.now();
+    return [
+      SmsEntry(
+        id: 'demo1',
+        rawSms: 'Rs.480 received in Paytm Wallet from John Doe on ${now.toString().substring(0, 10)}',
+        parsedAmount: 480,
+        parsedSource: TransactionType.upiPaytm,
+        receivedAt: now.subtract(const Duration(minutes: 5)),
+        status: 'pending',
+      ),
+      SmsEntry(
+        id: 'demo2',
+        rawSms: 'You have received Rs.320 in your Google Pay account from Jane Smith',
+        parsedAmount: 320,
+        parsedSource: TransactionType.upiGpay,
+        receivedAt: now.subtract(const Duration(minutes: 15)),
+        status: 'pending',
+      ),
+      SmsEntry(
+        id: 'demo3',
+        rawSms: 'PhonePe: Rs.150 credited to your account from Bob Johnson',
+        parsedAmount: 150,
+        parsedSource: TransactionType.upiPhonePe,
+        receivedAt: now.subtract(const Duration(minutes: 30)),
+        status: 'pending',
+      ),
+    ];
+  }
 }
 
 // ── SMS Provider for state ──────────────────────────
