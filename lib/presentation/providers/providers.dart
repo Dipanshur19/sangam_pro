@@ -134,7 +134,7 @@ class LocalSource {
   // Computed
   Future<double> getBalance(String custId) async {
     final txns = await getTransactions();
-    return txns.where((t) => t.customerId == custId).fold(0.0, (s,t) =>
+    return txns.where((t) => t.customerId == custId).fold<double>(0.0, (s,t) =>
         t.direction == entity.TransactionDirection.outgoing ? s + t.amount : s - t.amount);
   }
 
@@ -161,7 +161,7 @@ class LocalSource {
     final txns  = await getTransactions();
     final result = <OverdueCustomer>[];
     for (final c in custs) {
-      final bal = txns.where((t) => t.customerId == c.id).fold(0.0, (s,t) =>
+      final bal = txns.where((t) => t.customerId == c.id).fold<double>(0.0, (s,t) =>
           t.direction == entity.TransactionDirection.outgoing ? s + t.amount : s - t.amount);
       if (bal <= 0) continue;
       final lastCredit = txns.where((t) => t.customerId == c.id && t.type == entity.TransactionType.credit && t.direction == entity.TransactionDirection.outgoing).toList()
