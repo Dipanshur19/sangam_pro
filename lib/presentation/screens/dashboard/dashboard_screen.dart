@@ -134,7 +134,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                         child: Text('See all →', style: AppTextStyles.bodySm.copyWith(color: AppColors.saffron, fontWeight: FontWeight.w600))),
                   ]),
                 ),
-                ...overdue.take(3).asMap().entries.map((e) => Padding(
+                ...overdue.take(3).toList().asMap().entries.map((e) => Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
                   child: _OverdueCard(entry: e.value, onTap: () => context.push('/customer/${e.value.customerId}'))
                     .animate(delay: Duration(milliseconds: 450 + e.key * 80)).fadeIn(duration: 400.ms).slideX(begin: -0.15, end: 0),
@@ -173,6 +173,72 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
       ]),
       floatingActionButton: _SaffronFab(onTap: () => context.push('/add')),
       bottomNavigationBar: const SangamBottomNav(currentIndex: 0),
+    );
+  }
+}
+
+// ── Stat Card Widget ────────────────────────────────────
+class _StatCard extends StatelessWidget {
+  final String label;
+  final double value;
+  final Color color;
+  final Color bg;
+  final IconData icon;
+  final String? subtitle;
+  final VoidCallback? onTap;
+
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.color,
+    required this.bg,
+    required this.icon,
+    this.subtitle,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          border: Border.all(color: AppColors.borderLight, width: 0.5),
+          boxShadow: AppShadows.sm,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: bg,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 20, color: color),
+                ),
+                const Spacer(),
+                if (onTap != null)
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.text4),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text('₹${value.toStringAsFixed(0)}', style: AppTextStyles.h3.copyWith(color: color)),
+            const SizedBox(height: 4),
+            Text(label, style: AppTextStyles.caption),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(subtitle!, style: AppTextStyles.caption.copyWith(color: AppColors.text4)),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }
