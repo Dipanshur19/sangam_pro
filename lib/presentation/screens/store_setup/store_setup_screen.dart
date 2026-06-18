@@ -96,7 +96,7 @@ class _StoreSetupScreenState extends ConsumerState<StoreSetupScreen> {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const SizedBox(height: 28),
 
-              const SangamLogo(size: 56)
+              SangamLogo(size: 56)
                   .animate().scale(begin: const Offset(0.7, 0.7), end: const Offset(1, 1), duration: 500.ms, curve: Curves.elasticOut),
               const SizedBox(height: 22),
 

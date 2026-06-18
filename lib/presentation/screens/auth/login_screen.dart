@@ -60,7 +60,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               const SizedBox(height: 48),
 
               Center(
-                child: const SangamLogo(size: 84)
+                child: SangamLogo(size: 84)
                     .animate().scale(begin: const Offset(0.7, 0.7), end: const Offset(1, 1), duration: 600.ms, curve: Curves.elasticOut),
               ),
               const SizedBox(height: 18),

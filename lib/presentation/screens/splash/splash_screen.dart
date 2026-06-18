@@ -25,7 +25,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   late Animation<double> _particleProgress;
   late Animation<double> _textOpacity;
   late Animation<double> _textSlide;
-  late Animation<double> _bgFade;
 
   @override
   void initState() {
@@ -42,7 +41,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     _particleProgress = _particleCtrl.drive(Tween(begin: 0.0, end: 1.0));
     _textOpacity = CurvedAnimation(parent: _textCtrl, curve: Curves.easeOut).drive(Tween(begin: 0.0, end: 1.0));
     _textSlide   = CurvedAnimation(parent: _textCtrl, curve: Curves.easeOut).drive(Tween(begin: 20.0, end: 0.0));
-    _bgFade      = CurvedAnimation(parent: _fadeCtrl, curve: Curves.easeIn).drive(Tween(begin: 1.0, end: 0.0));
 
     _startSequence();
   }
