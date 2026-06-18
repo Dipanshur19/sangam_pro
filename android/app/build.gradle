@@ -66,8 +66,11 @@ android {
             // Use the real release keystore when available, otherwise debug keys
             // so the project still assembles without a keystore present.
             signingConfig hasKeystore ? signingConfigs.release : signingConfigs.debug
-            minifyEnabled true
-            shrinkResources true
+            // Code/resource shrinking is disabled for reliable release runs.
+            // To shrink for a smaller Play Store build, set both to true and
+            // test thoroughly (rules live in proguard-rules.pro).
+            minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
         debug {
