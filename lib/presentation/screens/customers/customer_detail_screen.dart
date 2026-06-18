@@ -56,6 +56,7 @@ class _S extends ConsumerState<CustomerDetailScreen> {
     final balAsync = ref.watch(customerBalanceProvider(widget.customerId));
     final txnsAsync = ref.watch(customerTransactionsProvider(widget.customerId));
     final customer = custsAsync.value?.where((c) => c.id == widget.customerId).firstOrNull;
+    final canEdit = ref.watch(currentUserProvider)?.canEdit ?? true;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -77,17 +78,17 @@ class _S extends ConsumerState<CustomerDetailScreen> {
                 if (balance > 0) ...[
                   const SizedBox(height: 18),
                   Row(children: [
-                    Expanded(child: ElevatedButton.icon(
-                      onPressed: () => setState(() => _showPay = !_showPay),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.saffron),
-                      icon: const Icon(Icons.payments_outlined, size: 16), label: const Text('Record Payment'))),
-                    if (customer?.phone != null) ...[
-                      const SizedBox(width: 10),
-                      OutlinedButton.icon(
+                    if (canEdit)
+                      Expanded(child: ElevatedButton.icon(
+                        onPressed: () => setState(() => _showPay = !_showPay),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: AppColors.saffron),
+                        icon: const Icon(Icons.payments_outlined, size: 16), label: const Text('Record Payment'))),
+                    if (canEdit && customer?.phone != null) const SizedBox(width: 10),
+                    if (customer?.phone != null)
+                      Expanded(child: OutlinedButton.icon(
                         onPressed: () => _whatsapp(customer!.name, customer.phone!, balance),
                         style: OutlinedButton.styleFrom(side: const BorderSide(color: Colors.white), foregroundColor: Colors.white),
-                        icon: const Icon(Icons.send, size: 14), label: const Text('Remind')),
-                    ],
+                        icon: const Icon(Icons.send, size: 14), label: const Text('Remind'))),
                   ]),
                 ],
               ]),

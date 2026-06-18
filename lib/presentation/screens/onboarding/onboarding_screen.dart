@@ -33,8 +33,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> with TickerProvider
       painter: _UnifiedPainter(),
     ),
     _Slide(
-      title: 'Staff. Customers.\nReminders. Done.',
-      subtitle: 'Staff check balances without calling you. WhatsApp reminders send in one tap. Photos of your khata import automatically.',
+      title: 'Staff logins.\nAuto SMS.\nReminders.',
+      subtitle: 'Give your staff their own login. UPI payments from Paytm, GPay & PhonePe import automatically from your SMS. Send WhatsApp reminders in one tap.',
       color: AppColors.cash,
       accent: AppColors.cashBg,
       painter: _HappyPainter(),

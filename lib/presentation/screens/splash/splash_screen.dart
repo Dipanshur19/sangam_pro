@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme.dart';
 import '../../providers/providers.dart';
+import '../../widgets/sangam_logo.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -58,15 +59,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     if (!mounted) return;
 
-    // Route based on whether the shop has been set up yet.
-    final profile = await ref.read(localSourceProvider).getStoreProfile();
-    if (profile.isConfigured) {
-      if (mounted) context.go('/dashboard');
+    // Route based on auth state.
+    final auth = ref.read(authServiceProvider);
+    final hasAdmin = await auth.hasAdmin();
+    if (!hasAdmin) {
+      final onboarded = await ref.read(onboardedProvider.future);
+      if (mounted) context.go(onboarded ? '/store-setup' : '/onboarding');
       return;
     }
-
-    final onboarded = await ref.read(onboardedProvider.future);
-    if (mounted) context.go(onboarded ? '/store-setup' : '/onboarding');
+    final session = await auth.getSessionUser();
+    if (mounted) context.go(session != null ? '/dashboard' : '/login');
   }
 
   @override
@@ -106,7 +108,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   ..scale(_logoScale.value),
                 child: Opacity(
                   opacity: _logoOpacity.value.clamp(0.0, 1.0),
-                  child: _SangamLogo(size: 100),
+                  child: const SangamLogo(size: 120, showBackground: false),
                 ),
               ),
             ),
@@ -145,78 +147,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     );
   }
-}
-
-// ── Sangam Logo Widget ──────────────────────────────────
-class _SangamLogo extends StatefulWidget {
-  final double size;
-  const _SangamLogo({required this.size});
-  @override
-  State<_SangamLogo> createState() => _SangamLogoState();
-}
-
-class _SangamLogoState extends State<_SangamLogo> with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _anim;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
-    _anim = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
-  }
-
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _anim,
-    builder: (_, __) => Container(
-      width: widget.size, height: widget.size,
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 30, spreadRadius: 5)],
-      ),
-      child: CustomPaint(painter: _LogoPainter(_anim.value)),
-    ),
-  );
-}
-
-class _LogoPainter extends CustomPainter {
-  final double t;
-  _LogoPainter(this.t);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2, cy = size.height / 2;
-    final r = size.width * 0.28;
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.055
-      ..strokeCap = StrokeCap.round;
-
-    // Three arcs converging — Paytm, GPay, PhonePe = Sangam
-    for (int i = 0; i < 3; i++) {
-      final angle = (i * 2 * math.pi / 3) + (t * 2 * math.pi * 0.3);
-      final startAngle = angle - math.pi * 0.6;
-      final sweepAngle = math.pi * 1.0;
-
-      final arcPath = Path()
-        ..addArc(Rect.fromCircle(center: Offset(cx + math.cos(angle) * r * 0.35, cy + math.sin(angle) * r * 0.35), radius: r * 0.7), startAngle, sweepAngle);
-
-      canvas.drawPath(arcPath, paint..color = Colors.white.withOpacity(0.85 + 0.15 * math.sin(t * math.pi * 2 + i)));
-    }
-
-    // Center confluence dot
-    canvas.drawCircle(Offset(cx, cy), size.width * 0.07, Paint()..color = Colors.white);
-  }
-
-  @override
-  bool shouldRepaint(_LogoPainter old) => old.t != t;
 }
 
 // ── Particle Painter ────────────────────────────────────

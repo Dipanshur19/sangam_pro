@@ -1,34 +1,187 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme.dart';
 import '../../../domain/entities/store_profile.dart';
+import '../../../domain/entities/app_user.dart';
+import '../../../services/auth_service.dart';
 import '../../providers/providers.dart';
 import '../auth/login_screen.dart' show ContextSnack;
 
-class SettingsScreen extends ConsumerStatefulWidget {
+class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
-  @override
-  ConsumerState<SettingsScreen> createState() => _S();
-}
-
-class _S extends ConsumerState<SettingsScreen> {
-  final _keyCtrl = TextEditingController();
-  bool _visible = false;
-  bool _saving = false;
 
   @override
-  void initState() {
-    super.initState();
-    ref.read(apiKeyProvider.future).then((k) {
-      if (k != null && k.isNotEmpty && mounted) _keyCtrl.text = '••••••${k.substring(k.length<6?0:k.length-6)}';
-    });
+  Widget build(BuildContext context, WidgetRef ref) {
+    final store = ref.watch(storeProfileProvider);
+    final me = ref.watch(currentUserProvider);
+    final isAdmin = me?.isAdmin ?? false;
+    final smsOn = ref.watch(smsAutoReadProvider);
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text('Settings'), leading: BackButton(onPressed: () => context.go('/dashboard'))),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // ── Signed in as ──
+          if (me != null)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: AppGradients.saffron,
+                borderRadius: BorderRadius.circular(AppRadius.xl),
+                boxShadow: AppShadows.saffron,
+              ),
+              child: Row(children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: Colors.white.withOpacity(0.2),
+                  child: Text(me.name.isEmpty ? '?' : me.name[0].toUpperCase(),
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(me.name, style: AppTextStyles.h4.copyWith(color: Colors.white)),
+                    Text('@${me.username} · ${me.isAdmin ? 'Admin' : (me.canEdit ? 'Staff (can edit)' : 'Staff (view only)')}',
+                        style: AppTextStyles.caption.copyWith(color: Colors.white.withOpacity(0.85))),
+                  ]),
+                ),
+              ]),
+            ),
+          const SizedBox(height: 16),
+
+          // ── Store ──
+          _Section(title: 'Store', children: [
+            _Tile(
+              icon: Icons.store_outlined,
+              label: store.name.isEmpty ? 'My Store' : store.name,
+              sub: _storeSub(store),
+              onTap: isAdmin ? () => _editStore(context, ref, store) : null,
+            ),
+          ]),
+          const SizedBox(height: 16),
+
+          // ── Automatic SMS reading ──
+          _Section(title: 'Payments', children: [
+            SwitchListTile(
+              value: smsOn,
+              activeColor: AppColors.saffron,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              secondary: const Icon(Icons.sms_outlined, color: AppColors.text3, size: 20),
+              title: Text('Auto-read UPI SMS', style: AppTextStyles.bodyMd),
+              subtitle: Text(
+                smsOn ? 'Reading payment SMS automatically' : 'Detect Paytm / GPay / PhonePe payments from SMS',
+                style: AppTextStyles.caption,
+              ),
+              onChanged: !isAdmin ? null : (v) async {
+                if (v) {
+                  final ok = await ref.read(smsAutoReadProvider.notifier).enable();
+                  if (context.mounted) {
+                    context.showSnack(ok ? 'Auto-read enabled' : 'SMS permission denied', isError: !ok);
+                  }
+                } else {
+                  await ref.read(smsAutoReadProvider.notifier).disable();
+                  if (context.mounted) context.showSnack('Auto-read turned off');
+                }
+              },
+            ),
+            const Divider(height: 0, indent: 56),
+            _Tile(
+              icon: Icons.inbox_outlined,
+              label: 'Review detected payments',
+              sub: 'Assign incoming UPI SMS to customers',
+              onTap: () => context.push('/sms-queue'),
+            ),
+          ]),
+          const SizedBox(height: 16),
+
+          // ── Team (admin only) ──
+          if (isAdmin) ...[
+            _TeamSection(),
+            const SizedBox(height: 16),
+          ],
+
+          // ── Data (admin only) ──
+          if (isAdmin) ...[
+            _Section(title: 'Data', children: [
+              _Tile(icon: Icons.refresh_rounded, label: 'Load demo data', sub: 'Replace with sample customers', onTap: () async {
+                final ok = await _confirm(context, 'Load demo data?', 'This replaces your current entries with sample data.', 'Load', AppColors.saffron);
+                if (ok) {
+                  await ref.read(localSourceProvider).resetToDemo();
+                  _refreshData(ref);
+                  if (context.mounted) context.showSnack('Demo data loaded!');
+                }
+              }),
+              const Divider(height: 0, indent: 56),
+              _Tile(icon: Icons.delete_outline_rounded, label: 'Clear all data', sub: 'Erase all customers & transactions', onTap: () async {
+                final ok = await _confirm(context, 'Clear all data?', 'This permanently erases every customer and transaction. Your shop profile and team are kept.', 'Clear all', AppColors.error);
+                if (ok) {
+                  await ref.read(localSourceProvider).clearAllData();
+                  _refreshData(ref);
+                  if (context.mounted) context.showSnack('All data cleared');
+                }
+              }),
+            ]),
+            const SizedBox(height: 16),
+          ],
+
+          // ── About ──
+          _Section(title: 'About', children: [
+            _Tile(icon: Icons.info_outline_rounded, label: 'Sangam', sub: 'Version 2.0.0'),
+            const Divider(height: 0, indent: 56),
+            _Tile(icon: Icons.favorite_outline_rounded, label: 'Sab ka ek hisaab', sub: 'One ledger for UPI, cash & udhar'),
+          ]),
+          const SizedBox(height: 24),
+
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await ref.read(currentUserProvider.notifier).logout();
+                if (context.mounted) context.go('/login');
+              },
+              style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.error), foregroundColor: AppColors.error),
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: const Text('Log out'),
+            ),
+          ),
+          const SizedBox(height: 40),
+        ]),
+      ),
+    );
   }
 
-  @override
-  void dispose() { _keyCtrl.dispose(); super.dispose(); }
+  String _storeSub(StoreProfile s) {
+    final parts = [if (s.ownerName.isNotEmpty) s.ownerName, if (s.location.isNotEmpty) s.location];
+    return parts.isEmpty ? 'Tap to edit details' : parts.join(' · ');
+  }
 
-  void _editStore(BuildContext context, StoreProfile current) {
+  void _refreshData(WidgetRef ref) {
+    ref.invalidate(transactionsStreamProvider);
+    ref.invalidate(customersStreamProvider);
+    ref.invalidate(todayTotalsProvider);
+    ref.invalidate(overdueCustomersProvider);
+  }
+
+  Future<bool> _confirm(BuildContext context, String title, String body, String action, Color color) async {
+    final r = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: Text(action, style: TextStyle(color: color))),
+        ],
+      ),
+    );
+    return r ?? false;
+  }
+
+  void _editStore(BuildContext context, WidgetRef ref, StoreProfile current) {
     final nameCtrl = TextEditingController(text: current.name);
     final ownerCtrl = TextEditingController(text: current.ownerName);
     final locationCtrl = TextEditingController(text: current.location);
@@ -82,7 +235,7 @@ class _S extends ConsumerState<SettingsScreen> {
                 ));
                 ref.invalidate(overdueCustomersProvider);
                 if (ctx.mounted) Navigator.pop(ctx);
-                if (mounted) context.showSnack('Store details updated');
+                if (context.mounted) context.showSnack('Store details updated');
               }, child: const Text('Save'))),
             ]),
           ]),
@@ -90,91 +243,178 @@ class _S extends ConsumerState<SettingsScreen> {
       ),
     );
   }
+}
 
+// ── Team management ─────────────────────────────────────
+class _TeamSection extends ConsumerWidget {
   @override
-  Widget build(BuildContext context) {
-    final store = ref.watch(storeProfileProvider);
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Settings'), leading: BackButton(onPressed: () => context.go('/dashboard'))),
-      body: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _Section(title: 'Store', children: [_Tile(
-          icon: Icons.store_outlined,
-          label: store.name.isEmpty ? 'My Store' : store.name,
-          sub: [
-            if (store.ownerName.isNotEmpty) store.ownerName,
-            if (store.location.isNotEmpty) store.location,
-          ].join(' · ').isEmpty ? 'Tap to edit details' : [
-            if (store.ownerName.isNotEmpty) store.ownerName,
-            if (store.location.isNotEmpty) store.location,
-          ].join(' · '),
-          onTap: () => _editStore(context, store),
-        )]),
-        const SizedBox(height: 16),
-        _Section(title: 'AI Photo Parsing', children: [Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Anthropic API Key', style: AppTextStyles.bodyMd), const SizedBox(height: 4),
-          Text('Required for Khata Photo import.', style: AppTextStyles.caption), const SizedBox(height: 10),
-          TextField(controller: _keyCtrl, obscureText: !_visible, decoration: InputDecoration(hintText: 'sk-ant-api03-…',
-            suffixIcon: IconButton(icon: Icon(_visible ? Icons.visibility_off : Icons.visibility, size: 18), onPressed: () => setState(() => _visible = !_visible)))),
-          const SizedBox(height: 10),
-          Row(children: [
-            Expanded(child: OutlinedButton(onPressed: () { _keyCtrl.clear(); ref.read(setApiKeyProvider)(''); context.showSnack('Cleared'); }, child: const Text('Clear'))),
-            const SizedBox(width: 10),
-            Expanded(child: ElevatedButton(onPressed: _saving ? null : () async {
-              final v = _keyCtrl.text.trim();
-              if (v.isEmpty || v.startsWith('••')) { context.showSnack('Enter valid key', isError: true); return; }
-              setState(() => _saving = true);
-              await ref.read(setApiKeyProvider)(v);
-              setState(() => _saving = false);
-              if (mounted) context.showSnack('Saved!');
-            }, child: _saving ? const SizedBox(width:16,height:16,child: CircularProgressIndicator(strokeWidth:2,color: Colors.white)) : const Text('Save'))),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usersAsync = ref.watch(usersProvider);
+    return _Section(title: 'Team', children: [
+      ...usersAsync.when(
+        loading: () => [const Padding(padding: EdgeInsets.all(16), child: LinearProgressIndicator())],
+        error: (_, __) => [const Padding(padding: EdgeInsets.all(16), child: Text('Could not load team'))],
+        data: (users) {
+          final staff = users.where((u) => !u.isAdmin).toList();
+          return [
+            for (final u in staff) ...[
+              ListTile(
+                leading: const Icon(Icons.person_outline_rounded, size: 20, color: AppColors.text3),
+                title: Text(u.name, style: AppTextStyles.bodyMd),
+                subtitle: Text('@${u.username} · ${u.canEdit ? 'Can edit' : 'View only'}', style: AppTextStyles.caption),
+                trailing: IconButton(
+                  icon: const Icon(Icons.more_horiz_rounded, size: 20, color: AppColors.text3),
+                  onPressed: () => _staffOptions(context, ref, u),
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              ),
+              const Divider(height: 0, indent: 56),
+            ],
+            ListTile(
+              leading: const Icon(Icons.person_add_alt_1_rounded, size: 20, color: AppColors.saffron),
+              title: Text('Add staff login', style: AppTextStyles.bodyMd.copyWith(color: AppColors.saffron)),
+              subtitle: Text(staff.isEmpty ? 'Give a helper their own username & password' : '${staff.length} staff member(s)', style: AppTextStyles.caption),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              onTap: () => _addStaff(context, ref),
+            ),
+          ];
+        },
+      ),
+    ]);
+  }
+
+  Future<void> _addStaff(BuildContext context, WidgetRef ref) async {
+    final nameCtrl = TextEditingController();
+    final userCtrl = TextEditingController();
+    final passCtrl = TextEditingController();
+    bool canEdit = true;
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Add staff login', style: AppTextStyles.h3),
+            const SizedBox(height: 4),
+            Text('They log in with the Staff tab using these details.', style: AppTextStyles.caption),
+            const SizedBox(height: 16),
+            TextField(controller: nameCtrl, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Name')),
+            const SizedBox(height: 12),
+            TextField(
+              controller: userCtrl,
+              autocorrect: false,
+              inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
+              decoration: const InputDecoration(labelText: 'Username'),
+            ),
+            const SizedBox(height: 12),
+            TextField(controller: passCtrl, decoration: const InputDecoration(labelText: 'Password')),
+            const SizedBox(height: 8),
+            SwitchListTile(
+              value: canEdit,
+              activeColor: AppColors.saffron,
+              contentPadding: EdgeInsets.zero,
+              title: Text('Allow adding & editing', style: AppTextStyles.bodyMd),
+              subtitle: Text(canEdit ? 'Can record transactions' : 'View only — cannot change data', style: AppTextStyles.caption),
+              onChanged: (v) => setSheet(() => canEdit = v),
+            ),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(child: OutlinedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel'))),
+              const SizedBox(width: 12),
+              Expanded(child: ElevatedButton(onPressed: () async {
+                final name = nameCtrl.text.trim();
+                final username = userCtrl.text.trim();
+                final pass = passCtrl.text;
+                if (name.isEmpty || username.length < 3 || pass.length < 4) {
+                  context.showSnack('Name, username (3+), password (4+) required', isError: true);
+                  return;
+                }
+                try {
+                  await ref.read(authServiceProvider).addStaff(name: name, username: username, password: pass, canEdit: canEdit);
+                  ref.invalidate(usersProvider);
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (context.mounted) context.showSnack('Staff added');
+                } on DuplicateUsernameException {
+                  if (context.mounted) context.showSnack('Username already taken', isError: true);
+                }
+              }, child: const Text('Add'))),
+            ]),
           ]),
-        ]))]),
-        const SizedBox(height: 16),
-        _Section(title: 'Roles', children: [
-          _Tile(icon: Icons.verified_user_outlined, label: 'Owner', sub: 'Full access — add, edit & view everything'),
-          const Divider(height: 0, indent: 56),
-          _Tile(icon: Icons.visibility_outlined, label: 'Staff', sub: 'Read-only balance lookup'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _staffOptions(BuildContext context, WidgetRef ref, AppUser u) async {
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const SizedBox(height: 8),
+          ListTile(
+            leading: Icon(u.canEdit ? Icons.visibility_outlined : Icons.edit_outlined, color: AppColors.text2),
+            title: Text(u.canEdit ? 'Make view-only' : 'Allow editing'),
+            onTap: () async {
+              await ref.read(authServiceProvider).updateStaff(u.id, canEdit: !u.canEdit);
+              ref.invalidate(usersProvider);
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.key_outlined, color: AppColors.text2),
+            title: const Text('Reset password'),
+            onTap: () async {
+              Navigator.pop(ctx);
+              await _resetPassword(context, ref, u);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+            title: const Text('Remove staff', style: TextStyle(color: AppColors.error)),
+            onTap: () async {
+              await ref.read(authServiceProvider).removeUser(u.id);
+              ref.invalidate(usersProvider);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted) context.showSnack('Staff removed');
+            },
+          ),
+          const SizedBox(height: 8),
         ]),
-        const SizedBox(height: 16),
-        _Section(title: 'Data', children: [
-          _Tile(icon: Icons.refresh_rounded, label: 'Load demo data', sub: 'Replace with sample customers', onTap: () async {
-          final confirm = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-            title: const Text('Load demo data?'), content: const Text('This replaces your current entries with sample data.'),
-            actions: [TextButton(onPressed: ()=>Navigator.pop(ctx,false), child: const Text('Cancel')), TextButton(onPressed: ()=>Navigator.pop(ctx,true), child: const Text('Load', style: TextStyle(color: AppColors.saffron)))]));
-          if (confirm == true) {
-            await ref.read(localSourceProvider).resetToDemo();
-            ref.invalidate(transactionsStreamProvider); ref.invalidate(customersStreamProvider);
-            ref.invalidate(todayTotalsProvider); ref.invalidate(overdueCustomersProvider);
-            if (context.mounted) context.showSnack('Demo data loaded!');
-          }
-          }),
-          const Divider(height: 0, indent: 56),
-          _Tile(icon: Icons.delete_outline_rounded, label: 'Clear all data', sub: 'Erase all customers & transactions', onTap: () async {
-            final confirm = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-              title: const Text('Clear all data?'), content: const Text('This permanently erases every customer and transaction. Your store profile is kept. This cannot be undone.'),
-              actions: [TextButton(onPressed: ()=>Navigator.pop(ctx,false), child: const Text('Cancel')), TextButton(onPressed: ()=>Navigator.pop(ctx,true), child: const Text('Clear all', style: TextStyle(color: AppColors.error)))]));
-            if (confirm == true) {
-              await ref.read(localSourceProvider).clearAllData();
-              ref.invalidate(transactionsStreamProvider); ref.invalidate(customersStreamProvider);
-              ref.invalidate(todayTotalsProvider); ref.invalidate(overdueCustomersProvider);
-              if (context.mounted) context.showSnack('All data cleared');
-            }
-          }),
+      ),
+    );
+  }
+
+  Future<void> _resetPassword(BuildContext context, WidgetRef ref, AppUser u) async {
+    final passCtrl = TextEditingController();
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Reset password for ${u.name}', style: AppTextStyles.h4),
+          const SizedBox(height: 16),
+          TextField(controller: passCtrl, decoration: const InputDecoration(labelText: 'New password')),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(onPressed: () async {
+              if (passCtrl.text.length < 4) { context.showSnack('Use at least 4 characters', isError: true); return; }
+              await ref.read(authServiceProvider).setPassword(u.id, passCtrl.text);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (context.mounted) context.showSnack('Password updated');
+            }, child: const Text('Update password')),
+          ),
         ]),
-        const SizedBox(height: 16),
-        _Section(title: 'About', children: [
-          _Tile(icon: Icons.info_outline_rounded, label: 'Sangam', sub: 'Version 2.0.0'),
-          const Divider(height: 0, indent: 56),
-          _Tile(icon: Icons.favorite_outline_rounded, label: 'Sab ka ek hisaab', sub: 'One ledger for UPI, cash & udhar'),
-        ]),
-        const SizedBox(height: 24),
-        SizedBox(width: double.infinity, child: OutlinedButton(
-          onPressed: () => context.go('/login'),
-          style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.error), foregroundColor: AppColors.error),
-          child: const Text('Logout'))),
-        const SizedBox(height: 40),
-      ])),
+      ),
     );
   }
 }

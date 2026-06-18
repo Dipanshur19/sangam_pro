@@ -1,119 +1,79 @@
-# Sangam Pro — Full-Stack Edition
+# Sangam — Sab ka ek hisaab
 
-Premium rebuild of Sangam with phone+OTP auth, 3D animated UI, Firebase-ready backend, and full interactive screens.
+A professional, OkCredit-style ledger for Indian kirana shops. One place for UPI
+(Paytm / GPay / PhonePe), cash and udhar (credit) — with a multi-user
+owner/staff login and automatic UPI-SMS detection.
 
-## What's new vs the original Sangam app
+## Highlights
 
-- **Configurable for any shop** — set your shop name, owner, and location on first launch; the whole app personalises to your store
-- **Owner & staff modes** — full owner view plus a read-only balance lookup for staff
-- **Animated splash screen** — 3D rotating Sangam logo with particle background
-- **3-slide onboarding + guided store setup** — start fresh or with sample data
-- **3D tilt dashboard card** — uses your phone's accelerometer for a parallax effect on the hero card
-- **Live donut chart** — UPI breakdown visualised with fl_chart
-- **Smooth animations everywhere** — flutter_animate powers fade/slide/scale transitions on every screen
-- **Premium design system** — gradient cards, glass-morphism, custom typography (Poppins)
-- **Optional phone + OTP login** — via Firebase Auth when configured (app is fully offline otherwise)
-- **All screens fully wired** — Splash → Onboarding → Store Setup → Login → Dashboard → Add → Customers → Customer Detail → Report → Staff → Settings → SMS Queue → Photo Import
+- **Multi-user login (Admin + Staff)** — the owner is the Admin. The owner can
+  create Staff logins from Settings, each with its own password and either
+  "can edit" or "view only" access. The login screen has an Admin / Staff
+  selector. Accounts and salted password hashes are stored on-device.
+- **Automatic UPI SMS reading** — with permission, Sangam reads incoming payment
+  SMS from Paytm, GPay and PhonePe, parses the amount/source, and queues them
+  for one-tap assignment to a customer.
+- **Groq-powered parsing (backend only)** — a Groq API key supplied at build
+  time (never shown in the app) is used to parse tricky SMS; on-device regex is
+  the always-available fallback.
+- **Configurable for any shop** — set shop name, owner and location during
+  guided setup; the whole app personalises to that store.
+- **Professional design** — indigo/emerald palette, refined logo, animated
+  splash, glass cards, donut UPI breakdown, smooth motion.
+- **Works offline** — all ledger data is local; demo data is opt-in.
 
-## Quick start (works offline, zero setup)
+## Quick start
 
 ```bash
 flutter pub get
 flutter run
 ```
 
-The app works immediately — no Firebase or account required.
+To enable Groq SMS parsing, pass your key at build/run time (kept out of the UI
+and out of source):
+
+```bash
+flutter run --dart-define=GROQ_API_KEY=gsk_your_key_here
+```
 
 ### First launch
 
-1. A 3-slide intro explains what Sangam does.
-2. **Set up your shop** — enter your shop name (and optionally owner name and
-   location). This personalises the whole app, so **any shop owner can use it**.
-3. Choose how to begin:
-   - **Start fresh** — an empty ledger for real use.
-   - **Try with sample data** — demo customers and transactions to explore.
+1. A short intro explains what Sangam does.
+2. **Set up your shop** — shop name, owner name, location, and the **admin
+   username + password**.
+3. Choose **Create shop & start** (empty ledger) or **Create with sample data**.
 
-You can edit your shop details, load demo data, or **clear all data** anytime
-from **Settings**. On the login screen, **Quick access → Owner / Staff** lets you
-switch between the full owner view and the read-only staff lookup.
+The owner is now logged in as Admin. From **Settings → Team** the owner can add
+Staff logins. Staff log in via the **Staff** tab on the login screen.
 
-## Enabling real phone + OTP login
+## Roles
 
-This requires Firebase. Steps:
+| Capability                    | Admin | Staff (can edit) | Staff (view only) |
+|-------------------------------|:-----:|:----------------:|:-----------------:|
+| View dashboard & customers    |  ✓    |        ✓         |         ✓         |
+| Add / edit transactions       |  ✓    |        ✓         |         —         |
+| Add customers                 |  ✓    |        ✓         |         —         |
+| Manage team, store, data      |  ✓    |        —         |         —         |
 
-```bash
-dart pub global activate flutterfire_cli
-flutterfire configure
-```
+## Automatic UPI SMS detection
 
-Then in `lib/main.dart`, uncomment:
-```dart
-await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-```
+1. Settings → **Auto-read UPI SMS** → grant SMS permission, or open the
+   **UPI Payments** screen and tap **Allow SMS access**.
+2. Sangam scans recent inbox messages and listens for new ones while open.
+3. Detected payments appear in the **UPI Payments** queue — pick a customer and
+   tap Save.
 
-And in `android/app/build.gradle`, add:
-```gradle
-plugins {
-    id "com.google.gms.google-services"
-}
-```
+Parsing order: on-device regex first; if it can't read the amount and a Groq key
+is configured, the SMS text is sent to Groq to extract the details.
 
-In Firebase Console → Authentication → Sign-in method → enable **Phone**.
+> **Google Play note:** `READ_SMS` / `RECEIVE_SMS` are restricted permissions.
+> To publish on Google Play you must complete the Permissions Declaration and
+> justify SMS use, or distribute via direct APK / private channel. The app
+> works fully without SMS access — it just won't auto-detect payments.
 
-## Enabling AI Khata Photo import
+## Build for release
 
-1. Get an Anthropic API key at console.anthropic.com
-2. Open the app → Dashboard → Settings (gear icon)
-3. Paste your key under "AI Photo Parsing"
-4. Go to Add Transaction → Khata Photo → take a photo of any handwritten register page
-
-## Project structure
-
-```
-lib/
-├── main.dart                    Entry point
-├── router.dart                  GoRouter — all 13 routes
-├── firebase_options.dart        Run flutterfire configure to populate
-├── core/
-│   ├── theme.dart               Full design system: colors, gradients, shadows, text styles
-│   ├── constants.dart           App-wide constants
-│   └── utils.dart                Formatting helpers
-├── domain/
-│   ├── entities/                Transaction, Customer, SmsEntry, DailyTotals, OverdueCustomer
-│   └── usecases/
-│       └── sms_parser.dart      Regex parser for Paytm/GPay/PhonePe SMS
-├── presentation/
-│   ├── providers/
-│   │   └── providers.dart       All Riverpod state — auth, transactions, customers, SMS queue
-│   ├── screens/
-│   │   ├── splash/              3D animated splash with particle background
-│   │   ├── onboarding/          3-slide custom-painted onboarding
-│   │   ├── auth/                Phone login + OTP verification
-│   │   ├── dashboard/           3D tilt hero card + donut chart + overdue list
-│   │   ├── add_transaction/     Manual / SMS paste / Camera entry
-│   │   ├── customers/           List + detail with payment recording
-│   │   ├── report/              End-of-day reconciliation report
-│   │   ├── staff/                Read-only balance lookup
-│   │   ├── sms_queue/           Auto-detected UPI SMS assignment
-│   │   ├── photo_import/        AI khata photo parsing
-│   │   └── settings/            API key, PINs, data reset
-│   └── widgets/
-│       └── bottom_nav.dart      Animated pill-highlight bottom navigation
-└── services/
-    ├── sms_service.dart         SMS permission + demo data (native integration point for Phase 2)
-    ├── claude_service.dart      Anthropic Vision API for khata photo parsing
-    └── notification_service.dart  Local push notifications
-```
-
-## Demo data
-
-Demo data is **opt-in**. Choose "Try with sample data" during setup, or load it
-later from **Settings → Data → Load demo data** (7 sample customers with
-realistic transaction history). Real shops should choose "Start fresh".
-
-## Build for the Play Store
-
-### 1. Create a release keystore (one time)
+### 1. Create a keystore (one time)
 
 ```bash
 keytool -genkey -v -keystore ~/sangam-release.jks \
@@ -123,40 +83,59 @@ keytool -genkey -v -keystore ~/sangam-release.jks \
 ### 2. Add signing config
 
 Copy `android/key.properties.example` to `android/key.properties` and fill in
-your keystore path and passwords. This file is git-ignored and must never be
-committed. If it is absent, release builds fall back to debug signing so the
-project still builds locally.
+your keystore path and passwords. It is git-ignored; if absent, release builds
+fall back to debug signing so the project still builds.
 
 ### 3. Build
 
 ```bash
-# App Bundle (recommended for Play Store upload)
-flutter build appbundle --release
+flutter build appbundle --release --dart-define=GROQ_API_KEY=gsk_your_key_here
 # Output: build/app/outputs/bundle/release/app-release.aab
-
-# Or a release APK for sideloading
-flutter build apk --release
-# Output: build/app/outputs/flutter-apk/app-release.apk
 ```
 
-Release builds use R8 code shrinking and resource shrinking (see
-`android/app/proguard-rules.pro`).
+Release builds use R8 + resource shrinking (`android/app/proguard-rules.pro`).
 
 ### Store listing checklist
 
 - **Package name:** `com.sangam.app`
-- **Privacy policy:** host [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) at a public
-  URL and add it in the Play Console (update the contact email first).
-- **Permissions:** Camera/Photos (khata import) and Notifications only. The app
-  deliberately requests **no SMS, contacts, or location** permissions.
-- **Data safety form:** ledger data stays on-device; photos are only sent to
-  Anthropic if the user enables AI import with their own key.
+- **Privacy policy:** host [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) publicly and
+  add the URL in the Play Console (update the contact email first).
+- **Permissions:** SMS (auto-read, opt-in) + Notifications. No contacts,
+  location, camera or microphone.
+- **Data safety:** ledger stays on-device; SMS text is sent to Groq only if a
+  Groq key was built in.
 
-## Known limitations / roadmap
+## Cross-device sync (roadmap)
 
-- **UPI SMS auto-detection** is shown as a preview with sample entries. True
-  background SMS reading is intentionally not enabled because Google Play
-  restricts SMS permissions; a future version may use a user-initiated import.
-- **Firebase sync / phone login** requires running `flutterfire configure` and
-  uncommenting the init in `lib/main.dart`. The default build is fully offline.
-- **Push notifications** need Firebase Cloud Messaging configured from a backend.
+Multi-user login works on a shared shop device today. To let the owner and staff
+use **separate phones** on the same shop data, a cloud backend (e.g. Firebase
+Firestore or Supabase) is needed. The data layer is structured so a cloud source
+can be added; reach out to wire it once a project is created.
+
+## Project structure
+
+```
+lib/
+├── main.dart                    Entry point
+├── router.dart                  GoRouter routes
+├── core/                        theme (design system), constants, utils
+├── domain/
+│   ├── entities/                transaction, customer, sms_entry, store_profile, app_user
+│   └── usecases/sms_parser.dart Regex parser for UPI SMS
+├── presentation/
+│   ├── providers/providers.dart Riverpod state — auth/session, data, SMS auto-read
+│   ├── screens/                 splash, onboarding, store_setup, auth (admin/staff),
+│   │                            dashboard, add_transaction, customers, report,
+│   │                            staff, sms_queue, settings
+│   └── widgets/                 sangam_logo, bottom_nav
+└── services/
+    ├── auth_service.dart        Local multi-user accounts (salted SHA-256)
+    ├── sms_service.dart         SMS reading via another_telephony + parsing
+    ├── groq_service.dart        Groq API parsing (key via --dart-define)
+    └── notification_service.dart Local notifications
+```
+
+## Demo data
+
+Opt-in: choose "Create with sample data" during setup, or load it later from
+**Settings → Data → Load demo data**. Real shops should start fresh.

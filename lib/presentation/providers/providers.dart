@@ -2,75 +2,116 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/transaction.dart' as entity;
 import '../../domain/entities/customer.dart';
 import '../../domain/entities/sms_entry.dart';
 import '../../domain/entities/store_profile.dart';
+import '../../domain/entities/app_user.dart';
+import '../../services/auth_service.dart';
+import '../../services/sms_service.dart';
 
-// ── Auth Service ──────────────────────────────────────
-class AuthService {
-  FirebaseAuth? _auth;
-  String? _verificationId;
+// ── Auth / session ────────────────────────────────────
+final authServiceProvider = Provider<AuthService>((_) => AuthService());
 
-  FirebaseAuth? get auth {
-    try {
-      _auth ??= FirebaseAuth.instance;
-      return _auth;
-    } catch (e) {
-      // Firebase not initialized
-      return null;
+/// The currently logged-in user (null = logged out). Restores the saved session
+/// on startup.
+class SessionNotifier extends StateNotifier<AppUser?> {
+  final AuthService _auth;
+  bool _restored = false;
+  SessionNotifier(this._auth) : super(null) {
+    _restore();
+  }
+
+  Future<void> _restore() async {
+    state = await _auth.getSessionUser();
+    _restored = true;
+  }
+
+  bool get isRestored => _restored;
+
+  Future<AppUser?> login({required String username, required String password, required UserRole role}) async {
+    final user = await _auth.verify(username: username, password: password, role: role);
+    if (user != null) {
+      await _auth.setSession(user.id);
+      state = user;
     }
+    return user;
   }
 
-  Stream<User?> get authStateChanges {
-    final firebaseAuth = auth;
-    if (firebaseAuth == null) {
-      // Return empty stream if Firebase not initialized
-      return Stream.value(null);
-    }
-    return firebaseAuth.authStateChanges();
+  /// Used right after creating the admin during setup to start a session.
+  Future<void> setUser(AppUser user) async {
+    await _auth.setSession(user.id);
+    state = user;
   }
 
-  Future<void> sendOtp(String phone) async {
-    final firebaseAuth = auth;
-    if (firebaseAuth == null) throw Exception('Firebase not initialized');
-    
-    await firebaseAuth.verifyPhoneNumber(
-      phoneNumber: phone,
-      verificationCompleted: (cred) async => await firebaseAuth.signInWithCredential(cred),
-      verificationFailed: (e) => throw e,
-      codeSent: (vId, _) => _verificationId = vId,
-      codeAutoRetrievalTimeout: (_) {},
-      timeout: const Duration(seconds: 60),
-    );
-  }
-
-  Future<bool> verifyOtp(String otp) async {
-    final firebaseAuth = auth;
-    if (firebaseAuth == null || _verificationId == null) return false;
-    try {
-      final cred = PhoneAuthProvider.credential(verificationId: _verificationId!, smsCode: otp);
-      await firebaseAuth.signInWithCredential(cred);
-      return true;
-    } catch (_) { return false; }
-  }
-
-  Future<void> signOut() async {
-    final firebaseAuth = auth;
-    if (firebaseAuth != null) await firebaseAuth.signOut();
-  }
-  
-  User? get currentUser {
-    final firebaseAuth = auth;
-    return firebaseAuth?.currentUser;
+  Future<void> logout() async {
+    await _auth.clearSession();
+    state = null;
   }
 }
 
-final authServiceProvider = Provider<AuthService>((_) => AuthService());
-final authStateProvider = StreamProvider<User?>((ref) => ref.watch(authServiceProvider).authStateChanges);
+final currentUserProvider = StateNotifierProvider<SessionNotifier, AppUser?>(
+  (ref) => SessionNotifier(ref.watch(authServiceProvider)),
+);
+
+final usersProvider = FutureProvider<List<AppUser>>((ref) => ref.watch(authServiceProvider).getUsers());
+final hasAdminProvider = FutureProvider<bool>((ref) => ref.watch(authServiceProvider).hasAdmin());
+
+// ── SMS auto-read ─────────────────────────────────────
+final smsServiceProvider = Provider<SmsService>((_) => SmsService());
+
+/// Whether automatic UPI SMS reading is enabled. Persists the choice, requests
+/// permission, scans recent inbox messages, and listens for new ones while the
+/// app is open — pushing parsed payments into [smsQueueProvider].
+class SmsAutoReadNotifier extends StateNotifier<bool> {
+  final Ref _ref;
+  static const _key = 'sangam_sms_auto';
+  SmsAutoReadNotifier(this._ref) : super(false) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final p = await SharedPreferences.getInstance();
+    if (p.getBool(_key) ?? false) {
+      state = true;
+      await scanNow();
+      _ref.read(smsServiceProvider).listenIncoming(_onEntry);
+    }
+  }
+
+  void _onEntry(SmsEntry e) => _ref.read(smsQueueProvider.notifier).add(e);
+
+  Future<bool> enable() async {
+    final granted = await _ref.read(smsServiceProvider).requestPermission();
+    if (!granted) return false;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_key, true);
+    state = true;
+    await scanNow();
+    _ref.read(smsServiceProvider).listenIncoming(_onEntry);
+    return true;
+  }
+
+  Future<void> disable() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_key, false);
+    state = false;
+  }
+
+  /// Scan the recent inbox now. Returns the number of payments found.
+  Future<int> scanNow() async {
+    final entries = await _ref.read(smsServiceProvider).readRecentUpiSms(days: 3);
+    for (final e in entries) {
+      _ref.read(smsQueueProvider.notifier).add(e);
+    }
+    return entries.length;
+  }
+}
+
+final smsAutoReadProvider = StateNotifierProvider<SmsAutoReadNotifier, bool>(
+  (ref) => SmsAutoReadNotifier(ref),
+);
 
 // ── Local source with demo data ───────────────────────
 class LocalSource {
@@ -336,19 +377,6 @@ class _SmsQueueNotifier extends StateNotifier<List<SmsEntry>> {
   void clear() => state = state.where((e) => e.status=='pending').toList();
   List<SmsEntry> get pending => state.where((e) => e.status=='pending').toList();
 }
-
-final apiKeyProvider = FutureProvider<String?>((ref) async {
-  final p = await SharedPreferences.getInstance();
-  return p.getString('sangam_api_key');
-});
-
-final setApiKeyProvider = Provider<Future<void> Function(String)>((ref) {
-  return (key) async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString('sangam_api_key', key);
-    ref.invalidate(apiKeyProvider);
-  };
-});
 
 final onboardedProvider = FutureProvider<bool>((ref) async {
   final p = await SharedPreferences.getInstance();

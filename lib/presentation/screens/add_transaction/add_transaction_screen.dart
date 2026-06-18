@@ -8,6 +8,7 @@ import '../../../domain/entities/transaction.dart';
 import '../../../domain/entities/customer.dart';
 import '../../../domain/usecases/sms_parser.dart';
 import '../../providers/providers.dart';
+import '../../widgets/bottom_nav.dart';
 import '../auth/login_screen.dart' show ContextSnack;
 
 class AddTransactionScreen extends ConsumerStatefulWidget {
@@ -60,6 +61,27 @@ class _S extends ConsumerState<AddTransactionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canEdit = ref.watch(currentUserProvider)?.canEdit ?? true;
+    if (!canEdit) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(title: const Text('Add Transaction'), leading: BackButton(onPressed: () => context.go('/dashboard'))),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              const Icon(Icons.lock_outline_rounded, size: 48, color: AppColors.border),
+              const SizedBox(height: 12),
+              Text('View-only access', style: AppTextStyles.h4),
+              const SizedBox(height: 6),
+              Text('Ask the shop owner to enable editing for your account.',
+                  textAlign: TextAlign.center, style: AppTextStyles.caption),
+            ]),
+          ),
+        ),
+        bottomNavigationBar: const SangamBottomNav(currentIndex: 2),
+      );
+    }
     final customersAsync = ref.watch(customersStreamProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -68,11 +90,8 @@ class _S extends ConsumerState<AddTransactionScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
-          Row(children: [
-            Expanded(child: _ImportBtn(icon: Icons.message_outlined, label: 'Paste UPI SMS', active: _showSms, onTap: () => setState(() => _showSms = !_showSms))),
-            const SizedBox(width: 10),
-            Expanded(child: _ImportBtn(icon: Icons.camera_alt_outlined, label: 'Khata Photo', onTap: () => context.push('/photo-import'))),
-          ]).animate().fadeIn(duration: 400.ms),
+          _ImportBtn(icon: Icons.message_outlined, label: 'Paste a UPI payment SMS', active: _showSms, onTap: () => setState(() => _showSms = !_showSms))
+            .animate().fadeIn(duration: 400.ms),
           const SizedBox(height: 14),
 
           if (_showSms) Container(

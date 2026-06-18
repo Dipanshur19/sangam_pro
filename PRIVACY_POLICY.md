@@ -8,57 +8,70 @@ credit (udhar). This policy explains what data the app handles and how.
 ## Summary
 
 - Your ledger data stays **on your device** by default.
-- The app works **fully offline**. No account is required.
-- We do **not** sell your data or use third-party advertising or analytics.
+- The app works **offline**. No central account is required.
+- We do **not** sell your data or use third-party advertising.
+
+## Accounts on your device
+
+The shop owner creates an **Admin** account (username + password). The admin can
+create additional **Staff** logins, each with their own password and either
+"can edit" or "view only" access. Passwords are stored only on the device as a
+salted hash — never in plain text and never uploaded.
 
 ## Data stored on your device
 
-The following information is stored locally on your phone using the device's
-secure app storage and is **not** transmitted anywhere unless you enable an
-optional feature below:
-
 - Store profile (shop name, owner name, location)
+- Team accounts (name, username, salted password hash, role)
 - Customers (name and optional phone number)
 - Transactions (amount, payment type, notes, date)
 
-You can erase all of this at any time from **Settings → Data → Clear all data**.
+You can erase customers and transactions anytime from
+**Settings → Data → Clear all data**.
+
+## SMS access (optional, opt-in)
+
+If you turn on **Auto-read UPI SMS** in Settings, the app asks for permission to
+read your SMS so it can detect payment messages from Paytm, GPay and PhonePe and
+suggest them for your ledger.
+
+- SMS reading is **off until you explicitly enable it** and grant permission.
+- Only payment-related messages are parsed; the rest are ignored.
+- Your SMS content stays on your device **unless** you have configured the
+  optional Groq parsing key (see below).
+- The app never sends SMS messages and never reads OTPs for any third party.
+
+## Optional cloud parsing (Groq)
+
+A build of the app may include a Groq API key (provided by the developer at
+build time, never shown in the app) used to better understand payment SMS that
+the on-device parser can't read. When configured, the **text of a payment SMS**
+may be sent to Groq's API to extract the amount and source. If no key is
+configured, all parsing happens on-device and nothing is sent anywhere. Data
+sent to Groq is subject to Groq's privacy policy.
 
 ## Permissions we request
 
-- **Camera / Photos** — only when you choose to import a handwritten khata photo.
-- **Notifications** — to show local payment and reminder alerts on your device.
-- **Internet** — used only for the optional features described below.
+- **SMS (READ_SMS / RECEIVE_SMS)** — only after you enable auto-read, to detect
+  UPI payments.
+- **Notifications** — to show local payment and reminder alerts.
+- **Internet** — used only for optional Groq parsing or future cloud sync.
 
-The app does **not** request SMS, contacts, location, or microphone permissions.
+The app does **not** request contacts, location, microphone, or camera.
 
-## Optional features that use the internet
+## Google Play note
 
-These are off by default and only run if you choose to use them:
-
-1. **AI Khata Photo Import.** If you add your own Anthropic API key in Settings
-   and import a photo, that image is sent to Anthropic's API to extract the
-   handwritten entries. The image is processed to return the parsed text and is
-   subject to Anthropic's privacy policy. Your API key is stored only on your
-   device. If you never add a key, no images are ever sent anywhere.
-
-2. **Cloud sync / phone login (Firebase).** If the app is built with Firebase
-   configured, phone-number authentication and cloud backup may be enabled. In
-   the default build this is disabled and the app runs entirely offline.
+Reading SMS requires sensitive permissions that Google Play restricts. If you
+publish this app on Google Play you must complete the Permissions Declaration
+and justify SMS use, or distribute via direct APK / a private channel. See the
+README for details.
 
 ## Children's privacy
 
-Sangam is a business tool intended for shop owners and is not directed at
-children under 13.
-
-## Data sharing
-
-We do not share your data with third parties except where you explicitly trigger
-an optional internet feature above (e.g. sending a photo to Anthropic for
-parsing, or syncing via Firebase if you enabled it).
+Sangam is a business tool for shop owners and is not directed at children.
 
 ## Your choices
 
-- Use the app fully offline by not adding an API key and not enabling Firebase.
+- Use the app fully offline by leaving auto-read off and not configuring Groq.
 - Clear all ledger data from Settings at any time.
 - Uninstalling the app removes all locally stored data.
 

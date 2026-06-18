@@ -2,15 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- ── Permissions ── -->
-    <!-- Internet for optional Firebase sync + AI khata photo parsing -->
+    <!-- Internet for optional cloud sync + Groq SMS parsing (backend only) -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
-    <!-- Camera + media for khata photo import -->
-    <uses-permission android:name="android.permission.CAMERA"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32"/>
+    <!-- Auto-read UPI payment SMS (Paytm / GPay / PhonePe) -->
+    <uses-permission android:name="android.permission.READ_SMS"/>
+    <uses-permission android:name="android.permission.RECEIVE_SMS"/>
 
     <!-- Local reminder notifications -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>

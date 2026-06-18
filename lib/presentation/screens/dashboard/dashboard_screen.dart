@@ -54,6 +54,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
     final overdueAsync = ref.watch(overdueCustomersProvider);
     final txnsAsync = ref.watch(transactionsStreamProvider);
     final store = ref.watch(storeProfileProvider);
+    final canEdit = ref.watch(currentUserProvider)?.canEdit ?? true;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -188,14 +189,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                         const SizedBox(height: 12),
                         Text('No transactions yet', style: AppTextStyles.bodyMd),
                         const SizedBox(height: 4),
-                        Text('Tap the + button to record your first sale or udhar.',
+                        Text(canEdit ? 'Tap the + button to record your first sale or udhar.' : 'Transactions added by your team will appear here.',
                             textAlign: TextAlign.center, style: AppTextStyles.caption),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () => context.push('/add'),
-                          icon: const Icon(Icons.add_rounded, size: 18),
-                          label: const Text('Add transaction'),
-                        ),
+                        if (canEdit) ...[
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () => context.push('/add'),
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text('Add transaction'),
+                          ),
+                        ],
                       ]),
                     ),
                   )
@@ -211,7 +214,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
           const SizedBox(height: 100),
         ])),
       ]),
-      floatingActionButton: _SaffronFab(onTap: () => context.push('/add')),
+      floatingActionButton: canEdit ? _SaffronFab(onTap: () => context.push('/add')) : null,
       bottomNavigationBar: const SangamBottomNav(currentIndex: 0),
     );
   }

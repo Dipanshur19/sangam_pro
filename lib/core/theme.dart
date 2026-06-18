@@ -2,32 +2,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 // ── Brand palette ─────────────────────────────────────
+// NOTE: the primary brand color is exposed under the historical name
+// `saffron` so the whole app keeps compiling, but the values below are the
+// new professional indigo/emerald scheme.
 class AppColors {
   AppColors._();
 
-  // Saffron brand
-  static const saffron       = Color(0xFFC45C12);
-  static const saffronLight  = Color(0xFFFFD4A8);
-  static const saffronDark   = Color(0xFF8B3A0A);
-  static const saffronGlow   = Color(0x40C45C12);
+  // Primary brand — indigo (kept under the `saffron` name for compatibility)
+  static const saffron       = Color(0xFF4F46E5);
+  static const saffronLight  = Color(0xFFE0E7FF);
+  static const saffronDark   = Color(0xFF3730A3);
+  static const saffronGlow   = Color(0x404F46E5);
 
-  // Deep purple accent (for contrast + 3D depth)
-  static const indigo        = Color(0xFF3730A3);
-  static const indigoLight   = Color(0xFFE0E7FF);
+  // Emerald accent (for contrast + depth)
+  static const indigo        = Color(0xFF0F766E);
+  static const indigoLight   = Color(0xFFCCFBF1);
 
-  // Warm surfaces
-  static const background    = Color(0xFFF8F4EF);
+  // Clean cool surfaces
+  static const background    = Color(0xFFF8FAFC);
   static const surface       = Color(0xFFFFFFFF);
-  static const surfaceWarm   = Color(0xFFFFF8F3);
-  static const surfaceTinted = Color(0xFFF5EDE3);
-  static const border        = Color(0xFFEADDCF);
-  static const borderLight   = Color(0xFFF2EBE3);
+  static const surfaceWarm   = Color(0xFFF8FAFF);
+  static const surfaceTinted = Color(0xFFEEF2FF);
+  static const border        = Color(0xFFE2E8F0);
+  static const borderLight   = Color(0xFFEEF2F6);
 
-  // Text
-  static const text1         = Color(0xFF1A0F00);
-  static const text2         = Color(0xFF5C4020);
-  static const text3         = Color(0xFF9E7A50);
-  static const text4         = Color(0xFFCEB89A);
+  // Text — slate
+  static const text1         = Color(0xFF0F172A);
+  static const text2         = Color(0xFF475569);
+  static const text3         = Color(0xFF94A3B8);
+  static const text4         = Color(0xFFCBD5E1);
 
   // Payment source — brand-accurate
   static const paytm         = Color(0xFF002970);
@@ -39,21 +42,21 @@ class AppColors {
   static const phonePe       = Color(0xFF5F259F);
   static const phonePeBg     = Color(0xFFF3EEFF);
   static const phonePeGlow   = Color(0x305F259F);
-  static const cash          = Color(0xFF166534);
-  static const cashBg        = Color(0xFFDCFCE7);
-  static const cashGlow      = Color(0x30166534);
-  static const udhar         = Color(0xFF991B1B);
-  static const udharBg       = Color(0xFFFEE2E2);
-  static const udharGlow     = Color(0x30991B1B);
+  static const cash          = Color(0xFF059669);
+  static const cashBg        = Color(0xFFD1FAE5);
+  static const cashGlow      = Color(0x30059669);
+  static const udhar         = Color(0xFFE11D48);
+  static const udharBg       = Color(0xFFFFE4E6);
+  static const udharGlow     = Color(0x30E11D48);
 
   // Semantic
-  static const success       = Color(0xFF15803D);
-  static const successBg     = Color(0xFFDCFCE7);
-  static const warning       = Color(0xFFB45309);
+  static const success       = Color(0xFF059669);
+  static const successBg     = Color(0xFFD1FAE5);
+  static const warning       = Color(0xFFD97706);
   static const warningBg     = Color(0xFFFEF3C7);
-  static const error         = Color(0xFFB91C1C);
-  static const errorBg       = Color(0xFFFEE2E2);
-  static const info          = Color(0xFF0369A1);
+  static const error         = Color(0xFFE11D48);
+  static const errorBg       = Color(0xFFFFE4E6);
+  static const info          = Color(0xFF0284C7);
   static const infoBg        = Color(0xFFE0F2FE);
 
   // Glass effect
@@ -66,35 +69,35 @@ class AppGradients {
   AppGradients._();
 
   static const saffron = LinearGradient(
-    colors: [Color(0xFFE07020), Color(0xFFC45C12), Color(0xFF9B3E0A)],
+    colors: [Color(0xFF6366F1), Color(0xFF4F46E5), Color(0xFF4338CA)],
     begin: Alignment.topLeft, end: Alignment.bottomRight,
   );
   static const saffronRadial = RadialGradient(
-    colors: [Color(0xFFFF8C42), Color(0xFFC45C12)],
+    colors: [Color(0xFF818CF8), Color(0xFF4F46E5)],
     center: Alignment(-0.3, -0.3), radius: 1.2,
   );
   static const card = LinearGradient(
-    colors: [Color(0xFFFFFFFF), Color(0xFFF8F4EF)],
+    colors: [Color(0xFFFFFFFF), Color(0xFFF8FAFC)],
     begin: Alignment.topLeft, end: Alignment.bottomRight,
   );
   static const darkCard = LinearGradient(
-    colors: [Color(0xFF2D1B00), Color(0xFF1A0F00)],
+    colors: [Color(0xFF1E1B4B), Color(0xFF0F172A)],
     begin: Alignment.topLeft, end: Alignment.bottomRight,
   );
   static const paytm = LinearGradient(colors: [Color(0xFF1A3A8F), Color(0xFF002970)], begin: Alignment.topLeft, end: Alignment.bottomRight);
   static const gpay  = LinearGradient(colors: [Color(0xFF4A9EF0), Color(0xFF1A73E8)], begin: Alignment.topLeft, end: Alignment.bottomRight);
   static const phonePe = LinearGradient(colors: [Color(0xFF8B4EC4), Color(0xFF5F259F)], begin: Alignment.topLeft, end: Alignment.bottomRight);
-  static const cash  = LinearGradient(colors: [Color(0xFF22C55E), Color(0xFF166534)], begin: Alignment.topLeft, end: Alignment.bottomRight);
-  static const udhar = LinearGradient(colors: [Color(0xFFEF4444), Color(0xFF991B1B)], begin: Alignment.topLeft, end: Alignment.bottomRight);
+  static const cash  = LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)], begin: Alignment.topLeft, end: Alignment.bottomRight);
+  static const udhar = LinearGradient(colors: [Color(0xFFFB7185), Color(0xFFE11D48)], begin: Alignment.topLeft, end: Alignment.bottomRight);
 }
 
 class AppShadows {
   AppShadows._();
 
-  static List<BoxShadow> sm = [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))];
-  static List<BoxShadow> md = [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 16, offset: const Offset(0, 4))];
-  static List<BoxShadow> lg = [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 32, offset: const Offset(0, 8))];
-  static List<BoxShadow> saffron = [BoxShadow(color: AppColors.saffron.withOpacity(0.35), blurRadius: 20, offset: const Offset(0, 6))];
+  static List<BoxShadow> sm = [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 2))];
+  static List<BoxShadow> md = [BoxShadow(color: Colors.black.withOpacity(0.07), blurRadius: 16, offset: const Offset(0, 4))];
+  static List<BoxShadow> lg = [BoxShadow(color: Colors.black.withOpacity(0.10), blurRadius: 32, offset: const Offset(0, 8))];
+  static List<BoxShadow> saffron = [BoxShadow(color: AppColors.saffron.withOpacity(0.32), blurRadius: 20, offset: const Offset(0, 6))];
   static List<BoxShadow> glow(Color c) => [BoxShadow(color: c.withOpacity(0.3), blurRadius: 20, spreadRadius: 2)];
 }
 
