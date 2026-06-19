@@ -8,6 +8,7 @@ import '../../domain/entities/customer.dart';
 import '../../domain/entities/sms_entry.dart';
 import '../../domain/entities/store_profile.dart';
 import '../../domain/entities/app_user.dart';
+import '../../domain/entities/product.dart';
 import '../../services/auth_service.dart';
 import '../../services/sms_service.dart';
 
@@ -119,6 +120,7 @@ class LocalSource {
   static const _txnsKey   = 'sangam_txns';
   static const _seededKey = 'sangam_seeded_v2';
   static const _profileKey = 'sangam_store_profile';
+  static const _productsKey = 'sangam_products';
   static const _uuid = Uuid();
 
   SharedPreferences? _p;
@@ -232,6 +234,37 @@ class LocalSource {
   Future<void> _saveTransactions(List<entity.Transaction> list) async {
     final p = await _prefs;
     await p.setString(_txnsKey, jsonEncode(list.map(_txnToMap).toList()));
+  }
+
+  // Products / Stock
+  Future<List<Product>> getProducts() async {
+    final p = await _prefs;
+    final raw = p.getString(_productsKey);
+    if (raw == null) return [];
+    return (jsonDecode(raw) as List).map((e) => Product.fromMap(Map<String, dynamic>.from(e as Map))).toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
+
+  Future<void> addProduct(Product item) async {
+    final all = await getProducts(); all.add(item); await _saveProducts(all);
+  }
+
+  Future<void> updateProduct(Product item) async {
+    final all = await getProducts();
+    final idx = all.indexWhere((p) => p.id == item.id);
+    if (idx >= 0) all[idx] = item; else all.add(item);
+    await _saveProducts(all);
+  }
+
+  Future<void> deleteProduct(String id) async {
+    final all = await getProducts();
+    all.removeWhere((p) => p.id == id);
+    await _saveProducts(all);
+  }
+
+  Future<void> _saveProducts(List<Product> list) async {
+    final p = await _prefs;
+    await p.setString(_productsKey, jsonEncode(list.map((e) => e.toMap()).toList()));
   }
 
   // Computed
@@ -366,6 +399,26 @@ final overdueCustomersProvider = FutureProvider<List<OverdueCustomer>>((ref) {
   ref.watch(_txnStreamCtrl);
   final dueDays = ref.watch(storeProfileProvider).creditDueDays;
   return ref.read(localSourceProvider).getOverdueCustomers(dueDays: dueDays);
+});
+
+// ── Products / Stock ──
+final productsStreamProvider = StreamProvider<List<Product>>((ref) async* {
+  await ref.watch(appInitProvider.future);
+  yield await ref.read(localSourceProvider).getProducts();
+});
+
+final saveProductProvider = Provider<Future<void> Function(Product)>((ref) {
+  return (item) async {
+    await ref.read(localSourceProvider).updateProduct(item);
+    ref.invalidate(productsStreamProvider);
+  };
+});
+
+final deleteProductProvider = Provider<Future<void> Function(String)>((ref) {
+  return (id) async {
+    await ref.read(localSourceProvider).deleteProduct(id);
+    ref.invalidate(productsStreamProvider);
+  };
 });
 
 final smsQueueProvider = StateNotifierProvider<_SmsQueueNotifier, List<SmsEntry>>((_) => _SmsQueueNotifier());

@@ -98,6 +98,18 @@ class SettingsScreen extends ConsumerWidget {
           ]),
           const SizedBox(height: 16),
 
+          const SizedBox(height: 16),
+
+          // ── Business tools ──
+          _Section(title: 'Business', children: [
+            _Tile(icon: Icons.person_outline_rounded, label: 'Profile', sub: 'Business info, GST, UPI ID, address', onTap: () => context.push('/profile')),
+            const Divider(height: 0, indent: 56),
+            _Tile(icon: Icons.inventory_2_outlined, label: 'Stock management', sub: 'Track the items you sell', onTap: () => context.push('/stock')),
+            const Divider(height: 0, indent: 56),
+            _Tile(icon: Icons.devices_rounded, label: 'Multi device', sub: 'Use on family & staff phones', onTap: () => context.push('/multi-device')),
+          ]),
+          const SizedBox(height: 16),
+
           // ── Team (admin only) ──
           if (isAdmin) ...[
             _TeamSection(),

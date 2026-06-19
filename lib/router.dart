@@ -11,6 +11,9 @@ import 'presentation/screens/customers/customer_detail_screen.dart';
 import 'presentation/screens/report/report_screen.dart';
 import 'presentation/screens/staff/staff_screen.dart';
 import 'presentation/screens/sms_queue/sms_queue_screen.dart';
+import 'presentation/screens/stock/stock_screen.dart';
+import 'presentation/screens/multi_device/multi_device_screen.dart';
+import 'presentation/screens/profile/profile_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
 
 GoRouter buildRouter() => GoRouter(
@@ -27,6 +30,9 @@ GoRouter buildRouter() => GoRouter(
     GoRoute(path: '/report',       builder: (_, __) => const ReportScreen()),
     GoRoute(path: '/staff',        builder: (_, __) => const StaffScreen()),
     GoRoute(path: '/sms-queue',    builder: (_, __) => const SmsQueueScreen()),
+    GoRoute(path: '/stock',        builder: (_, __) => const StockScreen()),
+    GoRoute(path: '/multi-device', builder: (_, __) => const MultiDeviceScreen()),
+    GoRoute(path: '/profile',      builder: (_, __) => const ProfileScreen()),
     GoRoute(path: '/settings',     builder: (_, __) => const SettingsScreen()),
   ],
   errorBuilder: (_, state) => Scaffold(body: Center(child: Text('Not found: ${state.error}'))),
