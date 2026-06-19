@@ -22,6 +22,7 @@ class _S extends ConsumerState<StaffScreen> {
   @override
   Widget build(BuildContext context) {
     final customersAsync = ref.watch(customersStreamProvider);
+    final store = ref.watch(storeProfileProvider);
     final found = _query.isEmpty ? null : (customersAsync.value ?? []).where((c) => c.name.toLowerCase().contains(_query.toLowerCase())).firstOrNull;
 
     return Scaffold(
@@ -31,11 +32,13 @@ class _S extends ConsumerState<StaffScreen> {
           Container(width: 32, height: 32, decoration: BoxDecoration(gradient: AppGradients.saffron, borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.water_drop_outlined, size: 16, color: Colors.white)),
           const SizedBox(width: 10),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Sangam', style: AppTextStyles.h4),
-            Text('Smriti General Store · Staff', style: AppTextStyles.caption),
-          ]),
-          const Spacer(),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Sangam', style: AppTextStyles.h4),
+              Text('${store.name.isEmpty ? 'Store' : store.name} · Staff',
+                  style: AppTextStyles.caption, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ]),
+          ),
           TextButton(onPressed: () => context.go('/login'), child: Text('Exit', style: AppTextStyles.bodySm.copyWith(color: AppColors.text3))),
         ])),
 
@@ -74,6 +77,8 @@ class _Result extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final balAsync = ref.watch(customerBalanceProvider(customerId));
+    final ownerName = ref.watch(storeProfileProvider).ownerName;
+    final contact = ownerName.isEmpty ? 'the owner' : '$ownerName ji';
     return Container(padding: const EdgeInsets.all(32), width: double.infinity,
       decoration: BoxDecoration(gradient: AppGradients.saffron, borderRadius: BorderRadius.circular(AppRadius.xxl), boxShadow: AppShadows.saffron),
       child: Column(children: [
@@ -91,7 +96,7 @@ class _Result extends ConsumerWidget {
           ]),
         ),
         const SizedBox(height: 14),
-        Text('Read-only · Call Smriti ji for changes', style: AppTextStyles.caption.copyWith(color: Colors.white60)),
+        Text('Read-only · Contact $contact for changes', style: AppTextStyles.caption.copyWith(color: Colors.white60), textAlign: TextAlign.center),
       ]),
     );
   }

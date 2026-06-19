@@ -2,64 +2,169 @@
 import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 import '../../domain/entities/transaction.dart' as entity;
 import '../../domain/entities/customer.dart';
 import '../../domain/entities/sms_entry.dart';
-import '../../core/constants.dart';
+import '../../domain/entities/store_profile.dart';
+import '../../domain/entities/app_user.dart';
+import '../../domain/entities/product.dart';
+import '../../services/auth_service.dart';
+import '../../services/sms_service.dart';
 
-// ── Auth Service ──────────────────────────────────────
-class AuthService {
-  final _auth = FirebaseAuth.instance;
-  String? _verificationId;
+// ── Auth / session ────────────────────────────────────
+final authServiceProvider = Provider<AuthService>((_) => AuthService());
 
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
-
-  Future<void> sendOtp(String phone) async {
-    await _auth.verifyPhoneNumber(
-      phoneNumber: phone,
-      verificationCompleted: (cred) async => await _auth.signInWithCredential(cred),
-      verificationFailed: (e) => throw e,
-      codeSent: (vId, _) => _verificationId = vId,
-      codeAutoRetrievalTimeout: (_) {},
-      timeout: const Duration(seconds: 60),
-    );
+/// The currently logged-in user (null = logged out). Restores the saved session
+/// on startup.
+class SessionNotifier extends StateNotifier<AppUser?> {
+  final AuthService _auth;
+  bool _restored = false;
+  SessionNotifier(this._auth) : super(null) {
+    _restore();
   }
 
-  Future<bool> verifyOtp(String otp) async {
-    if (_verificationId == null) return false;
-    try {
-      final cred = PhoneAuthProvider.credential(verificationId: _verificationId!, smsCode: otp);
-      await _auth.signInWithCredential(cred);
-      return true;
-    } catch (_) { return false; }
+  Future<void> _restore() async {
+    state = await _auth.getSessionUser();
+    _restored = true;
   }
 
-  Future<void> signOut() => _auth.signOut();
-  User? get currentUser => _auth.currentUser;
+  bool get isRestored => _restored;
+
+  Future<AppUser?> login({required String username, required String password, required UserRole role}) async {
+    final user = await _auth.verify(username: username, password: password, role: role);
+    if (user != null) {
+      await _auth.setSession(user.id);
+      state = user;
+    }
+    return user;
+  }
+
+  /// Used right after creating the admin during setup to start a session.
+  Future<void> setUser(AppUser user) async {
+    await _auth.setSession(user.id);
+    state = user;
+  }
+
+  Future<void> logout() async {
+    await _auth.clearSession();
+    state = null;
+  }
 }
 
-final authServiceProvider = Provider<AuthService>((_) => AuthService());
-final authStateProvider = StreamProvider<User?>((ref) => ref.watch(authServiceProvider).authStateChanges);
+final currentUserProvider = StateNotifierProvider<SessionNotifier, AppUser?>(
+  (ref) => SessionNotifier(ref.watch(authServiceProvider)),
+);
+
+final usersProvider = FutureProvider<List<AppUser>>((ref) => ref.watch(authServiceProvider).getUsers());
+final hasAdminProvider = FutureProvider<bool>((ref) => ref.watch(authServiceProvider).hasAdmin());
+
+// ── SMS auto-read ─────────────────────────────────────
+final smsServiceProvider = Provider<SmsService>((_) => SmsService());
+
+/// Whether automatic UPI SMS reading is enabled. Persists the choice, requests
+/// permission, scans recent inbox messages, and listens for new ones while the
+/// app is open — pushing parsed payments into [smsQueueProvider].
+class SmsAutoReadNotifier extends StateNotifier<bool> {
+  final Ref _ref;
+  static const _key = 'sangam_sms_auto';
+  SmsAutoReadNotifier(this._ref) : super(false) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final p = await SharedPreferences.getInstance();
+    if (p.getBool(_key) ?? false) {
+      state = true;
+      await scanNow();
+      _ref.read(smsServiceProvider).listenIncoming(_onEntry);
+    }
+  }
+
+  void _onEntry(SmsEntry e) => _ref.read(smsQueueProvider.notifier).add(e);
+
+  Future<bool> enable() async {
+    final granted = await _ref.read(smsServiceProvider).requestPermission();
+    if (!granted) return false;
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_key, true);
+    state = true;
+    await scanNow();
+    _ref.read(smsServiceProvider).listenIncoming(_onEntry);
+    return true;
+  }
+
+  Future<void> disable() async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_key, false);
+    state = false;
+  }
+
+  /// Scan the recent inbox now. Returns the number of payments found.
+  Future<int> scanNow() async {
+    final entries = await _ref.read(smsServiceProvider).readRecentUpiSms(days: 3);
+    for (final e in entries) {
+      _ref.read(smsQueueProvider.notifier).add(e);
+    }
+    return entries.length;
+  }
+}
+
+final smsAutoReadProvider = StateNotifierProvider<SmsAutoReadNotifier, bool>(
+  (ref) => SmsAutoReadNotifier(ref),
+);
 
 // ── Local source with demo data ───────────────────────
 class LocalSource {
   static const _custsKey  = 'sangam_custs';
   static const _txnsKey   = 'sangam_txns';
   static const _seededKey = 'sangam_seeded_v2';
+  static const _profileKey = 'sangam_store_profile';
+  static const _productsKey = 'sangam_products';
   static const _uuid = Uuid();
 
   SharedPreferences? _p;
   Future<SharedPreferences> get _prefs async => _p ??= await SharedPreferences.getInstance();
 
+  /// Ensures local storage is ready. Does NOT auto-seed demo data anymore —
+  /// new shop owners choose between a fresh start and demo data during setup.
   Future<void> ensureSeeded() async {
+    await _prefs;
+  }
+
+  // ── Store profile ──
+  Future<StoreProfile> getStoreProfile() async {
     final p = await _prefs;
-    if (p.getBool(_seededKey) == true) return;
+    final raw = p.getString(_profileKey);
+    if (raw == null) return StoreProfile.empty;
+    return StoreProfile.fromMap(jsonDecode(raw) as Map<String, dynamic>);
+  }
+
+  Future<void> saveStoreProfile(StoreProfile profile) async {
+    final p = await _prefs;
+    await p.setString(_profileKey, jsonEncode(profile.toMap()));
+  }
+
+  /// Seed demo customers + transactions (used for "Try with demo data").
+  Future<void> seedDemoData() async {
+    final p = await _prefs;
     await _saveCustomers(_seedCustomers());
     await _saveTransactions(_seedTransactions());
     await p.setBool(_seededKey, true);
+  }
+
+  /// Start with an empty ledger (used for a real shop's first launch).
+  Future<void> startFresh() async {
+    final p = await _prefs;
+    await _saveCustomers([]);
+    await _saveTransactions([]);
+    await p.setBool(_seededKey, true);
+  }
+
+  /// Erase all transactions and customers but keep the store profile.
+  Future<void> clearAllData() async {
+    await _saveCustomers([]);
+    await _saveTransactions([]);
   }
 
   List<Customer> _seedCustomers() => [
@@ -131,10 +236,41 @@ class LocalSource {
     await p.setString(_txnsKey, jsonEncode(list.map(_txnToMap).toList()));
   }
 
+  // Products / Stock
+  Future<List<Product>> getProducts() async {
+    final p = await _prefs;
+    final raw = p.getString(_productsKey);
+    if (raw == null) return [];
+    return (jsonDecode(raw) as List).map((e) => Product.fromMap(Map<String, dynamic>.from(e as Map))).toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
+
+  Future<void> addProduct(Product item) async {
+    final all = await getProducts(); all.add(item); await _saveProducts(all);
+  }
+
+  Future<void> updateProduct(Product item) async {
+    final all = await getProducts();
+    final idx = all.indexWhere((p) => p.id == item.id);
+    if (idx >= 0) all[idx] = item; else all.add(item);
+    await _saveProducts(all);
+  }
+
+  Future<void> deleteProduct(String id) async {
+    final all = await getProducts();
+    all.removeWhere((p) => p.id == id);
+    await _saveProducts(all);
+  }
+
+  Future<void> _saveProducts(List<Product> list) async {
+    final p = await _prefs;
+    await p.setString(_productsKey, jsonEncode(list.map((e) => e.toMap()).toList()));
+  }
+
   // Computed
   Future<double> getBalance(String custId) async {
     final txns = await getTransactions();
-    return txns.where((t) => t.customerId == custId).fold(0.0, (s,t) =>
+    return txns.where((t) => t.customerId == custId).fold<double>(0.0, (s,t) =>
         t.direction == entity.TransactionDirection.outgoing ? s + t.amount : s - t.amount);
   }
 
@@ -156,28 +292,26 @@ class LocalSource {
     return DailyTotals(paytm:paytm, gpay:gpay, phonePe:phonePe, cash:cash, creditOut:creditOut, creditIn:creditIn, txnCount:today.length);
   }
 
-  Future<List<OverdueCustomer>> getOverdueCustomers() async {
+  Future<List<OverdueCustomer>> getOverdueCustomers({int dueDays = 7}) async {
     final custs = await getCustomers();
     final txns  = await getTransactions();
     final result = <OverdueCustomer>[];
     for (final c in custs) {
-      final bal = txns.where((t) => t.customerId == c.id).fold(0.0, (s,t) =>
+      final bal = txns.where((t) => t.customerId == c.id).fold<double>(0.0, (s,t) =>
           t.direction == entity.TransactionDirection.outgoing ? s + t.amount : s - t.amount);
       if (bal <= 0) continue;
       final lastCredit = txns.where((t) => t.customerId == c.id && t.type == entity.TransactionType.credit && t.direction == entity.TransactionDirection.outgoing).toList()
         ..sort((a,b) => b.date.compareTo(a.date));
       if (lastCredit.isEmpty) continue;
       final days = DateTime.now().difference(lastCredit.first.date).inDays;
-      result.add(OverdueCustomer(customerId:c.id, customerName:c.name, phone:c.phone, balance:bal, daysOverdue:days-7));
+      result.add(OverdueCustomer(customerId:c.id, customerName:c.name, phone:c.phone, balance:bal, daysOverdue:days-dueDays));
     }
     result.sort((a,b) => b.daysOverdue.compareTo(a.daysOverdue));
     return result;
   }
 
   Future<void> resetToDemo() async {
-    final p = await _prefs;
-    await p.remove(_seededKey);
-    await ensureSeeded();
+    await seedDemoData();
   }
 
   bool _sameDay(DateTime a, DateTime b) => a.year==b.year && a.month==b.month && a.day==b.day;
@@ -193,6 +327,29 @@ class LocalSource {
 final localSourceProvider = Provider<LocalSource>((_) => LocalSource());
 
 final appInitProvider = FutureProvider<void>((ref) => ref.watch(localSourceProvider).ensureSeeded());
+
+// ── Store profile ──
+class StoreProfileNotifier extends StateNotifier<StoreProfile> {
+  final LocalSource _source;
+  StoreProfileNotifier(this._source) : super(StoreProfile.empty) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    state = await _source.getStoreProfile();
+  }
+
+  Future<void> save(StoreProfile profile) async {
+    await _source.saveStoreProfile(profile);
+    state = profile;
+  }
+
+  Future<void> reload() => _load();
+}
+
+final storeProfileProvider = StateNotifierProvider<StoreProfileNotifier, StoreProfile>(
+  (ref) => StoreProfileNotifier(ref.watch(localSourceProvider)),
+);
 
 final _txnStreamCtrl = StreamProvider<List<entity.Transaction>>((ref) async* {
   await ref.watch(appInitProvider.future);
@@ -240,7 +397,28 @@ final customerTransactionsProvider = FutureProvider.family<List<entity.Transacti
 
 final overdueCustomersProvider = FutureProvider<List<OverdueCustomer>>((ref) {
   ref.watch(_txnStreamCtrl);
-  return ref.read(localSourceProvider).getOverdueCustomers();
+  final dueDays = ref.watch(storeProfileProvider).creditDueDays;
+  return ref.read(localSourceProvider).getOverdueCustomers(dueDays: dueDays);
+});
+
+// ── Products / Stock ──
+final productsStreamProvider = StreamProvider<List<Product>>((ref) async* {
+  await ref.watch(appInitProvider.future);
+  yield await ref.read(localSourceProvider).getProducts();
+});
+
+final saveProductProvider = Provider<Future<void> Function(Product)>((ref) {
+  return (item) async {
+    await ref.read(localSourceProvider).updateProduct(item);
+    ref.invalidate(productsStreamProvider);
+  };
+});
+
+final deleteProductProvider = Provider<Future<void> Function(String)>((ref) {
+  return (id) async {
+    await ref.read(localSourceProvider).deleteProduct(id);
+    ref.invalidate(productsStreamProvider);
+  };
 });
 
 final smsQueueProvider = StateNotifierProvider<_SmsQueueNotifier, List<SmsEntry>>((_) => _SmsQueueNotifier());
@@ -252,19 +430,6 @@ class _SmsQueueNotifier extends StateNotifier<List<SmsEntry>> {
   void clear() => state = state.where((e) => e.status=='pending').toList();
   List<SmsEntry> get pending => state.where((e) => e.status=='pending').toList();
 }
-
-final apiKeyProvider = FutureProvider<String?>((ref) async {
-  final p = await SharedPreferences.getInstance();
-  return p.getString('sangam_api_key');
-});
-
-final setApiKeyProvider = Provider<Future<void> Function(String)>((ref) {
-  return (key) async {
-    final p = await SharedPreferences.getInstance();
-    await p.setString('sangam_api_key', key);
-    ref.invalidate(apiKeyProvider);
-  };
-});
 
 final onboardedProvider = FutureProvider<bool>((ref) async {
   final p = await SharedPreferences.getInstance();

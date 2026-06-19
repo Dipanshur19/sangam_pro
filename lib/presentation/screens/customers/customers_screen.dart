@@ -24,17 +24,19 @@ class _S extends ConsumerState<CustomersScreen> {
   @override
   Widget build(BuildContext context) {
     final customersAsync = ref.watch(customersStreamProvider);
+    final canEdit = ref.watch(currentUserProvider)?.canEdit ?? true;
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Customers'),
         leading: BackButton(onPressed: () => context.go('/dashboard')),
         actions: [
-          TextButton.icon(
-            onPressed: () => _showAddSheet(context),
-            icon: const Icon(Icons.person_add_outlined, size: 16, color: AppColors.saffron),
-            label: Text('New', style: AppTextStyles.btnSm.copyWith(color: AppColors.saffron)),
-          ),
+          if (canEdit)
+            TextButton.icon(
+              onPressed: () => _showAddSheet(context),
+              icon: const Icon(Icons.person_add_outlined, size: 16, color: AppColors.saffron),
+              label: Text('New', style: AppTextStyles.btnSm.copyWith(color: AppColors.saffron)),
+            ),
         ],
       ),
       body: Column(children: [

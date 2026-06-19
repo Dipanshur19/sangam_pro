@@ -59,11 +59,11 @@ class AppTextStyles {
 class AppConstants {
   AppConstants._();
 
-  static const storeName = 'Smriti General Store';
+  static const storeName = 'My Store';
   static const ownerPin = '1234';
   static const staffPin = '5678';
   static const creditDueDays = 7;
-  static const storeId = 'smriti_general_store';
+  static const storeId = 'default_store';
 
   // Firebase collections
   static const colCustomers = 'customers';

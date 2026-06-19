@@ -1,109 +1,156 @@
-# Sangam Pro — Full-Stack Edition
+<h1 align="center">Sangam — Sab ka ek hisaab</h1>
 
-Premium rebuild of Sangam with phone+OTP auth, 3D animated UI, Firebase-ready backend, and full interactive screens.
+<p align="center">
+  <b>One ledger for a kirana shop's UPI (Paytm · GPay · PhonePe), cash and udhar —<br/>
+  with automatic UPI-SMS capture and a multi-user (owner + staff) login.</b>
+</p>
 
-## What's new vs the original Sangam app
+<p align="center">
+  <img alt="Flutter" src="https://img.shields.io/badge/Flutter-Dart-02569B?logo=flutter&logoColor=white"/>
+  <img alt="Platform" src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white"/>
+  <img alt="State" src="https://img.shields.io/badge/state-Riverpod-7C4DFF"/>
+  <img alt="AI" src="https://img.shields.io/badge/SMS%20parsing-Groq%20LLM-F55036"/>
+  <img alt="Offline first" src="https://img.shields.io/badge/offline-first-059669"/>
+</p>
 
-- **Real login** — phone number + OTP via Firebase Auth (with demo PIN shortcuts for quick testing)
-- **Animated splash screen** — 3D rotating Sangam logo with particle background
-- **3-slide onboarding** — custom-painted illustrations, parallax background
-- **3D tilt dashboard card** — uses your phone's accelerometer for a parallax effect on the hero card
-- **Live donut chart** — UPI breakdown visualised with fl_chart
-- **Smooth animations everywhere** — flutter_animate powers fade/slide/scale transitions on every screen
-- **Premium design system** — gradient cards, glass-morphism, custom typography (Poppins)
-- **All 10 screens fully wired** — Splash → Onboarding → Login → OTP → Dashboard → Add → Customers → Customer Detail → Report → Staff → Settings → SMS Queue → Photo Import
+> **POC Demo submission:** see **[SUBMISSION.md](SUBMISSION.md)** for the demo video script, tech stack, asks for the panel and notes for judges.
 
-## Quick start (works offline, zero setup)
+A professional, OkCredit-style ledger for Indian kirana shops. One place for UPI
+(Paytm / GPay / PhonePe), cash and udhar (credit) — with a multi-user
+owner/staff login and automatic UPI-SMS detection.
+
+## Highlights
+
+- **Multi-user login (Admin + Staff)** — the owner is the Admin. The owner can
+  create Staff logins from Settings, each with its own password and either
+  "can edit" or "view only" access. The login screen has an Admin / Staff
+  selector. Accounts and salted password hashes are stored on-device.
+- **Automatic UPI SMS reading** — with permission, Sangam reads incoming payment
+  SMS from Paytm, GPay and PhonePe, parses the amount/source, and queues them
+  for one-tap assignment to a customer.
+- **Groq-powered parsing (backend only)** — a Groq API key supplied at build
+  time (never shown in the app) is used to parse tricky SMS; on-device regex is
+  the always-available fallback.
+- **Configurable for any shop** — set shop name, owner and location during
+  guided setup; the whole app personalises to that store.
+- **Professional design** — indigo/emerald palette, refined logo, animated
+  splash, glass cards, donut UPI breakdown, smooth motion.
+- **Works offline** — all ledger data is local; demo data is opt-in.
+
+## Quick start
 
 ```bash
 flutter pub get
 flutter run
 ```
 
-The app works immediately with local demo data — no Firebase required to test it. On the login screen, tap **"Owner (1234)"** or **"Staff (5678)"** under "Demo access" to skip phone verification entirely.
-
-## Enabling real phone + OTP login
-
-This requires Firebase. Steps:
+To enable Groq SMS parsing, pass your key at build/run time (kept out of the UI
+and out of source):
 
 ```bash
-dart pub global activate flutterfire_cli
-flutterfire configure
+flutter run --dart-define=GROQ_API_KEY=gsk_your_key_here
 ```
 
-Then in `lib/main.dart`, uncomment:
-```dart
-await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+### First launch
+
+1. A short intro explains what Sangam does.
+2. **Set up your shop** — shop name, owner name, location, and the **admin
+   username + password**.
+3. Choose **Create shop & start** (empty ledger) or **Create with sample data**.
+
+The owner is now logged in as Admin. From **Settings → Team** the owner can add
+Staff logins. Staff log in via the **Staff** tab on the login screen.
+
+## Roles
+
+| Capability                    | Admin | Staff (can edit) | Staff (view only) |
+|-------------------------------|:-----:|:----------------:|:-----------------:|
+| View dashboard & customers    |  ✓    |        ✓         |         ✓         |
+| Add / edit transactions       |  ✓    |        ✓         |         —         |
+| Add customers                 |  ✓    |        ✓         |         —         |
+| Manage team, store, data      |  ✓    |        —         |         —         |
+
+## Automatic UPI SMS detection
+
+1. Settings → **Auto-read UPI SMS** → grant SMS permission, or open the
+   **UPI Payments** screen and tap **Allow SMS access**.
+2. Sangam scans recent inbox messages and listens for new ones while open.
+3. Detected payments appear in the **UPI Payments** queue — pick a customer and
+   tap Save.
+
+Parsing order: on-device regex first; if it can't read the amount and a Groq key
+is configured, the SMS text is sent to Groq to extract the details.
+
+> **Google Play note:** `READ_SMS` / `RECEIVE_SMS` are restricted permissions.
+> To publish on Google Play you must complete the Permissions Declaration and
+> justify SMS use, or distribute via direct APK / private channel. The app
+> works fully without SMS access — it just won't auto-detect payments.
+
+## Build for release
+
+### 1. Create a keystore (one time)
+
+```bash
+keytool -genkey -v -keystore ~/sangam-release.jks \
+  -keyalg RSA -keysize 2048 -validity 10000 -alias sangam
 ```
 
-And in `android/app/build.gradle`, add:
-```gradle
-plugins {
-    id "com.google.gms.google-services"
-}
+### 2. Add signing config
+
+Copy `android/key.properties.example` to `android/key.properties` and fill in
+your keystore path and passwords. It is git-ignored; if absent, release builds
+fall back to debug signing so the project still builds.
+
+### 3. Build
+
+```bash
+flutter build appbundle --release --dart-define=GROQ_API_KEY=gsk_your_key_here
+# Output: build/app/outputs/bundle/release/app-release.aab
 ```
 
-In Firebase Console → Authentication → Sign-in method → enable **Phone**.
+Release builds use R8 + resource shrinking (`android/app/proguard-rules.pro`).
 
-## Enabling AI Khata Photo import
+### Store listing checklist
 
-1. Get an Anthropic API key at console.anthropic.com
-2. Open the app → Dashboard → Settings (gear icon)
-3. Paste your key under "AI Photo Parsing"
-4. Go to Add Transaction → Khata Photo → take a photo of any handwritten register page
+- **Package name:** `com.sangam.app`
+- **Privacy policy:** host [`PRIVACY_POLICY.md`](PRIVACY_POLICY.md) publicly and
+  add the URL in the Play Console (update the contact email first).
+- **Permissions:** SMS (auto-read, opt-in) + Notifications. No contacts,
+  location, camera or microphone.
+- **Data safety:** ledger stays on-device; SMS text is sent to Groq only if a
+  Groq key was built in.
+
+## Cross-device sync (roadmap)
+
+Multi-user login works on a shared shop device today. To let the owner and staff
+use **separate phones** on the same shop data, a cloud backend (e.g. Firebase
+Firestore or Supabase) is needed. The data layer is structured so a cloud source
+can be added; reach out to wire it once a project is created.
 
 ## Project structure
 
 ```
 lib/
 ├── main.dart                    Entry point
-├── router.dart                  GoRouter — all 13 routes
-├── firebase_options.dart        Run flutterfire configure to populate
-├── core/
-│   ├── theme.dart               Full design system: colors, gradients, shadows, text styles
-│   ├── constants.dart           App-wide constants
-│   └── utils.dart                Formatting helpers
+├── router.dart                  GoRouter routes
+├── core/                        theme (design system), constants, utils
 ├── domain/
-│   ├── entities/                Transaction, Customer, SmsEntry, DailyTotals, OverdueCustomer
-│   └── usecases/
-│       └── sms_parser.dart      Regex parser for Paytm/GPay/PhonePe SMS
+│   ├── entities/                transaction, customer, sms_entry, store_profile, app_user
+│   └── usecases/sms_parser.dart Regex parser for UPI SMS
 ├── presentation/
-│   ├── providers/
-│   │   └── providers.dart       All Riverpod state — auth, transactions, customers, SMS queue
-│   ├── screens/
-│   │   ├── splash/              3D animated splash with particle background
-│   │   ├── onboarding/          3-slide custom-painted onboarding
-│   │   ├── auth/                Phone login + OTP verification
-│   │   ├── dashboard/           3D tilt hero card + donut chart + overdue list
-│   │   ├── add_transaction/     Manual / SMS paste / Camera entry
-│   │   ├── customers/           List + detail with payment recording
-│   │   ├── report/              End-of-day reconciliation report
-│   │   ├── staff/                Read-only balance lookup
-│   │   ├── sms_queue/           Auto-detected UPI SMS assignment
-│   │   ├── photo_import/        AI khata photo parsing
-│   │   └── settings/            API key, PINs, data reset
-│   └── widgets/
-│       └── bottom_nav.dart      Animated pill-highlight bottom navigation
+│   ├── providers/providers.dart Riverpod state — auth/session, data, SMS auto-read
+│   ├── screens/                 splash, onboarding, store_setup, auth (admin/staff),
+│   │                            dashboard, add_transaction, customers, report,
+│   │                            staff, sms_queue, settings
+│   └── widgets/                 sangam_logo, bottom_nav
 └── services/
-    ├── sms_service.dart         SMS permission + demo data (native integration point for Phase 2)
-    ├── claude_service.dart      Anthropic Vision API for khata photo parsing
-    └── notification_service.dart  Local push notifications
+    ├── auth_service.dart        Local multi-user accounts (salted SHA-256)
+    ├── sms_service.dart         SMS reading via another_telephony + parsing
+    ├── groq_service.dart        Groq API parsing (key via --dart-define)
+    └── notification_service.dart Local notifications
 ```
 
 ## Demo data
 
-Seeded automatically on first launch — 7 customers (Ramesh, Kavita, Mohan, Sunita, Raju, Priya, Vikram) with realistic transaction history matching real-world kirana store patterns. Reset anytime from Settings → "Reset to demo data".
-
-## Build release APK
-
-```bash
-flutter build apk --release
-```
-
-Output: `build/app/outputs/flutter-apk/app-release.apk`
-
-## Known limitations (Phase 2 roadmap)
-
-- SMS auto-read currently shows demo data — native Android `READ_SMS` MethodChannel integration is the next step (code structure already in `sms_service.dart`)
-- Firebase sync requires `flutterfire configure` — app works fully offline without it
-- Push notifications need Firebase Cloud Messaging configured to fire from a backend (Cloud Functions)
+Opt-in: choose "Create with sample data" during setup, or load it later from
+**Settings → Data → Load demo data**. Real shops should start fresh.
