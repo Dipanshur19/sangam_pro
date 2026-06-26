@@ -51,31 +51,33 @@ android {
     }
 
     signingConfigs {
-        // Force BOTH v1 (JAR) and v2 signatures. Some OEM installers
-        // (Realme/Oppo ColorOS, certain MIUI builds) reject v2-only APKs
-        // and silently fail to install/open. Enabling v1 too makes the APK
-        // install on essentially every Android phone.
-        debug {
-            enableV1Signing true
-            enableV2Signing true
-        }
-        if (hasKeystore) {
-            release {
+        // Single explicit signing config used for ALL release builds. Forces
+        // both v1 (JAR) and v2 signatures so the APK installs on every OEM,
+        // including Realme/Oppo (ColorOS) and MIUI which reject v2-only APKs.
+        // Uses the real release keystore when key.properties is present,
+        // otherwise falls back to the standard Android debug keystore so the
+        // project still builds without any extra setup.
+        release {
+            if (hasKeystore) {
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
                 storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
                 storePassword keystoreProperties['storePassword']
-                enableV1Signing true
-                enableV2Signing true
+            } else {
+                storeFile file("${System.properties['user.home']}/.android/debug.keystore")
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
             }
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 
     buildTypes {
         release {
-            // Use the real release keystore when available, otherwise debug keys
-            // so the project still assembles without a keystore present.
-            signingConfig hasKeystore ? signingConfigs.release : signingConfigs.debug
+            // Always use our explicit release config (v1 + v2 signing forced).
+            signingConfig signingConfigs.release
             // Code/resource shrinking is disabled for reliable release runs.
             // To shrink for a smaller Play Store build, set both to true and
             // test thoroughly (rules live in proguard-rules.pro).
