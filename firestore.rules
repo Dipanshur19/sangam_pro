@@ -1,0 +1,28 @@
+rules_version = '2';
+
+// Sangam Firestore security rules.
+//
+// HOW TO APPLY: Firebase console → Firestore Database → Rules → paste this →
+// Publish. (This replaces the temporary "test mode" rules, which expire and
+// would otherwise break sync after ~30 days.)
+//
+// Model: every shop's ledger lives under /shops/{shopCode}. The shop code is a
+// shared secret — anyone who knows it (owner + their staff) can read/write that
+// shop, and nothing outside /shops is accessible. Basic shape/size checks limit
+// abuse. For stronger security later, add Firebase Auth (phone OTP) and gate
+// each shop by the owner's uid.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /shops/{shopCode}/{document=**} {
+      allow read, write: if shopCode is string
+        && shopCode.size() >= 4
+        && shopCode.size() <= 40;
+    }
+
+    // Deny everything outside /shops.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

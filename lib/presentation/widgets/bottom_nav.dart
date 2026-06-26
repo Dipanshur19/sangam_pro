@@ -1,14 +1,18 @@
 // lib/presentation/widgets/bottom_nav.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme.dart';
+import '../../core/l10n.dart';
+import '../providers/providers.dart';
 
-class SangamBottomNav extends StatelessWidget {
+class SangamBottomNav extends ConsumerWidget {
   final int currentIndex;
   const SangamBottomNav({super.key, required this.currentIndex});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hi = ref.watch(languageProvider);
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -19,10 +23,10 @@ class SangamBottomNav extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 6),
           child: Row(children: [
-            _NavItem(icon: Icons.grid_view_rounded, label: 'Home',      index: 0, current: currentIndex, route: '/dashboard'),
-            _NavItem(icon: Icons.people_outline_rounded, label: 'Customers', index: 1, current: currentIndex, route: '/customers'),
-            _NavItem(icon: Icons.add_circle_outline_rounded, label: 'Add',   index: 2, current: currentIndex, route: '/add'),
-            _NavItem(icon: Icons.description_outlined, label: 'Report',  index: 3, current: currentIndex, route: '/report'),
+            _NavItem(icon: Icons.grid_view_rounded, label: tr('Home', 'होम', hi),         index: 0, current: currentIndex, route: '/dashboard'),
+            _NavItem(icon: Icons.people_outline_rounded, label: tr('Customers', 'ग्राहक', hi), index: 1, current: currentIndex, route: '/customers'),
+            _NavItem(icon: Icons.add_circle_outline_rounded, label: tr('Add', 'जोड़ें', hi),  index: 2, current: currentIndex, route: '/add'),
+            _NavItem(icon: Icons.description_outlined, label: tr('Report', 'रिपोर्ट', hi),  index: 3, current: currentIndex, route: '/report'),
           ]),
         ),
       ),

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../core/theme.dart';
+import '../../../core/l10n.dart';
 import '../../providers/providers.dart';
 import '../../widgets/bottom_nav.dart';
 
@@ -40,15 +41,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
   @override
   void dispose() { _accelSub?.cancel(); _counterCtrl.dispose(); super.dispose(); }
 
-  String _greeting() {
+  String _greeting(bool hi) {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return tr('Good morning', 'सुप्रभात', hi);
+    if (hour < 17) return tr('Good afternoon', 'नमस्कार', hi);
+    return tr('Good evening', 'शुभ संध्या', hi);
   }
 
   @override
   Widget build(BuildContext context) {
+    final hi = ref.watch(languageProvider);
     final totalsAsync = ref.watch(todayTotalsProvider);
     final overdueAsync = ref.watch(overdueCustomersProvider);
     final txnsAsync = ref.watch(transactionsStreamProvider);
@@ -68,8 +70,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
               child: Row(children: [
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(_greeting(), style: AppTextStyles.labelCaps.copyWith(color: AppColors.saffron)),
-                    Text(store.name.isEmpty ? 'My Store' : store.name,
+                    Text(_greeting(hi), style: AppTextStyles.labelCaps.copyWith(color: AppColors.saffron)),
+                    Text(store.name.isEmpty ? tr('My Store', 'मेरी दुकान', hi) : store.name,
                         style: AppTextStyles.h4, maxLines: 1, overflow: TextOverflow.ellipsis),
                   ]),
                 ),
@@ -92,7 +94,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
             loading: () => const _HeroCardSkeleton(),
             error: (e, _) => const SizedBox(),
             data: (totals) => _HeroCard3D(
-              totals: totals, tiltX: _tiltX, tiltY: _tiltY, ctrl: _counterCtrl,
+              totals: totals, tiltX: _tiltX, tiltY: _tiltY, ctrl: _counterCtrl, hi: hi,
             ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.2, end: 0, duration: 700.ms, curve: Curves.easeOut),
           ),
 
@@ -105,7 +107,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
               Expanded(child: totalsAsync.when(
                 loading: () => const _StatSkeleton(),
                 error: (_, __) => const SizedBox(),
-                data: (t) => _StatCard(label: 'Udhar Given', value: t.creditOut, color: AppColors.udhar, bg: AppColors.udharBg, icon: Icons.credit_card_outlined)
+                data: (t) => _StatCard(label: tr('Udhar Given', 'उधार दिया', hi), value: t.creditOut, color: AppColors.udhar, bg: AppColors.udharBg, icon: Icons.credit_card_outlined)
                   .animate(delay: 200.ms).fadeIn(duration: 400.ms).slideX(begin: -0.2, end: 0),
               )),
               const SizedBox(width: 12),
@@ -113,9 +115,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                 loading: () => const _StatSkeleton(),
                 error: (_, __) => const SizedBox(),
                 data: (o) => _StatCard(
-                  label: 'Outstanding', value: o.fold(0.0, (s, x) => s + x.balance),
+                  label: tr('Outstanding', 'बकाया', hi), value: o.fold(0.0, (s, x) => s + x.balance),
                   color: AppColors.cash, bg: AppColors.cashBg, icon: Icons.trending_up_rounded,
-                  subtitle: '${o.length} customers',
+                  subtitle: '${o.length} ${tr('customers', 'ग्राहक', hi)}',
                   onTap: () => context.push('/customers'),
                 ).animate(delay: 300.ms).fadeIn(duration: 400.ms).slideX(begin: 0.2, end: 0),
               )),
@@ -148,10 +150,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                     Container(width: 20, height: 20, decoration: BoxDecoration(color: AppColors.warningBg, borderRadius: BorderRadius.circular(6)),
                         child: const Icon(Icons.warning_amber_rounded, size: 13, color: AppColors.warning)),
                     const SizedBox(width: 8),
-                    Text('Overdue', style: AppTextStyles.h4),
+                    Text(tr('Overdue', 'बकाया (समय पार)', hi), style: AppTextStyles.h4),
                     const Spacer(),
                     GestureDetector(onTap: () => context.push('/customers'),
-                        child: Text('See all →', style: AppTextStyles.bodySm.copyWith(color: AppColors.saffron, fontWeight: FontWeight.w600))),
+                        child: Text(tr('See all →', 'सभी देखें →', hi), style: AppTextStyles.bodySm.copyWith(color: AppColors.saffron, fontWeight: FontWeight.w600))),
                   ]),
                 ),
                 ...overdue.take(3).toList().asMap().entries.map((e) => Padding(
@@ -167,10 +169,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
             child: Row(children: [
-              Text('Recent', style: AppTextStyles.h4),
+              Text(tr('Recent', 'हाल के', hi), style: AppTextStyles.h4),
               const Spacer(),
               GestureDetector(onTap: () => context.push('/report'),
-                  child: Text('Full report →', style: AppTextStyles.bodySm.copyWith(color: AppColors.saffron, fontWeight: FontWeight.w600))),
+                  child: Text(tr('Full report →', 'पूरी रिपोर्ट →', hi), style: AppTextStyles.bodySm.copyWith(color: AppColors.saffron, fontWeight: FontWeight.w600))),
             ]),
           ),
 
@@ -186,16 +188,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> with TickerPr
                       child: Column(children: [
                         const Icon(Icons.receipt_long_outlined, size: 40, color: AppColors.border),
                         const SizedBox(height: 12),
-                        Text('No transactions yet', style: AppTextStyles.bodyMd),
+                        Text(tr('No transactions yet', 'अभी कोई लेन-देन नहीं', hi), style: AppTextStyles.bodyMd),
                         const SizedBox(height: 4),
-                        Text(canEdit ? 'Tap the + button to record your first sale or udhar.' : 'Transactions added by your team will appear here.',
+                        Text(canEdit ? tr('Tap the + button to record your first sale or udhar.', 'अपनी पहली बिक्री या उधार दर्ज करने के लिए + दबाएँ।', hi) : tr('Transactions added by your team will appear here.', 'आपकी टीम द्वारा जोड़े गए लेन-देन यहाँ दिखेंगे।', hi),
                             textAlign: TextAlign.center, style: AppTextStyles.caption),
                         if (canEdit) ...[
                           const SizedBox(height: 16),
                           ElevatedButton.icon(
                             onPressed: () => context.push('/add'),
                             icon: const Icon(Icons.add_rounded, size: 18),
-                            label: const Text('Add transaction'),
+                            label: Text(tr('Add transaction', 'लेन-देन जोड़ें', hi)),
                           ),
                         ],
                       ]),
@@ -287,8 +289,8 @@ class _StatCard extends StatelessWidget {
 
 // ── 3D Hero Card ────────────────────────────────────────
 class _HeroCard3D extends StatelessWidget {
-  final dynamic totals; final double tiltX, tiltY; final AnimationController ctrl;
-  const _HeroCard3D({required this.totals, required this.tiltX, required this.tiltY, required this.ctrl});
+  final dynamic totals; final double tiltX, tiltY; final AnimationController ctrl; final bool hi;
+  const _HeroCard3D({required this.totals, required this.tiltX, required this.tiltY, required this.ctrl, required this.hi});
 
   @override
   Widget build(BuildContext context) {
@@ -321,7 +323,7 @@ class _HeroCard3D extends StatelessWidget {
               padding: const EdgeInsets.all(24),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Text('Total collected today', style: AppTextStyles.label.copyWith(color: Colors.white70)),
+                  Text(tr('Total collected today', 'आज कुल जमा', hi), style: AppTextStyles.label.copyWith(color: Colors.white70)),
                   const Spacer(),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),

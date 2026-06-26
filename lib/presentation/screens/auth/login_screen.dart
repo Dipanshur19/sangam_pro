@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme.dart';
+import '../../../core/l10n.dart';
 import '../../../domain/entities/app_user.dart';
 import '../../providers/providers.dart';
 import '../../widgets/sangam_logo.dart';
@@ -49,6 +50,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final hi = ref.watch(languageProvider);
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -87,17 +89,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
               const SizedBox(height: 24),
 
-              Text(_role == UserRole.admin ? 'Owner login' : 'Staff login', style: AppTextStyles.h3),
+              Text(_role == UserRole.admin ? tr('Owner login', 'मालिक लॉगिन', hi) : tr('Staff login', 'स्टाफ लॉगिन', hi), style: AppTextStyles.h3),
               const SizedBox(height: 4),
               Text(
                 _role == UserRole.admin
-                    ? 'Full access to add, edit and manage your shop.'
-                    : 'Log in with the username and password your owner gave you.',
+                    ? tr('Full access to add, edit and manage your shop.', 'अपनी दुकान को जोड़ने, बदलने और प्रबंधित करने की पूरी पहुँच।', hi)
+                    : tr('Log in with the username and password your owner gave you.', 'अपने मालिक द्वारा दिए गए यूज़रनेम और पासवर्ड से लॉगिन करें।', hi),
                 style: AppTextStyles.bodySm,
               ),
               const SizedBox(height: 20),
 
-              Text('USERNAME', style: AppTextStyles.labelCaps),
+              Text(tr('USERNAME', 'यूज़रनेम', hi), style: AppTextStyles.labelCaps),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _userCtrl,
@@ -105,18 +107,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 textInputAction: TextInputAction.next,
                 inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
                 style: AppTextStyles.bodyMd,
-                validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter your username' : null,
+                validator: (v) => (v == null || v.trim().isEmpty) ? tr('Enter your username', 'अपना यूज़रनेम भरें', hi) : null,
                 decoration: const InputDecoration(hintText: 'e.g. smriti', prefixIcon: Icon(Icons.alternate_email_rounded, size: 18)),
               ),
               const SizedBox(height: 16),
 
-              Text('PASSWORD', style: AppTextStyles.labelCaps),
+              Text(tr('PASSWORD', 'पासवर्ड', hi), style: AppTextStyles.labelCaps),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _passCtrl,
                 obscureText: _obscure,
                 style: AppTextStyles.bodyMd,
-                validator: (v) => (v == null || v.isEmpty) ? 'Enter your password' : null,
+                validator: (v) => (v == null || v.isEmpty) ? tr('Enter your password', 'अपना पासवर्ड भरें', hi) : null,
                 onFieldSubmitted: (_) => _login(),
                 decoration: InputDecoration(
                   hintText: '••••••',
@@ -129,13 +131,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 28),
 
-              _GradientButton(label: 'Log in', loading: _loading, onTap: _login)
+              _GradientButton(label: tr('Log in', 'लॉगिन करें', hi), loading: _loading, onTap: _login)
                   .animate(delay: 360.ms).fadeIn(duration: 400.ms),
 
               const SizedBox(height: 16),
               Center(
                 child: Text(
-                  'New here? Create your shop from the welcome screen.',
+                  tr('New here? Create your shop from the welcome screen.', 'नए हैं? वेलकम स्क्रीन से अपनी दुकान बनाएँ।', hi),
                   style: AppTextStyles.caption,
                   textAlign: TextAlign.center,
                 ),

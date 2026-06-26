@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme.dart';
+import '../../../core/l10n.dart';
 import '../../../domain/entities/store_profile.dart';
 import '../../../domain/entities/app_user.dart';
 import '../../../services/auth_service.dart';
@@ -18,10 +20,11 @@ class SettingsScreen extends ConsumerWidget {
     final me = ref.watch(currentUserProvider);
     final isAdmin = me?.isAdmin ?? false;
     final smsOn = ref.watch(smsAutoReadProvider);
+    final hi = ref.watch(languageProvider);
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(title: const Text('Settings'), leading: BackButton(onPressed: () => context.go('/dashboard'))),
+      appBar: AppBar(title: Text(tr('Settings', 'सेटिंग्स', hi)), leading: BackButton(onPressed: () => context.go('/dashboard'))),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -54,7 +57,7 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // ── Store ──
-          _Section(title: 'Store', children: [
+          _Section(title: tr('Store', 'दुकान', hi), children: [
             _Tile(
               icon: Icons.store_outlined,
               label: store.name.isEmpty ? 'My Store' : store.name,
@@ -64,16 +67,34 @@ class SettingsScreen extends ConsumerWidget {
           ]),
           const SizedBox(height: 16),
 
+          // ── Language ──
+          _Section(title: tr('Preferences', 'प्राथमिकताएँ', hi), children: [
+            ListTile(
+              leading: const Icon(Icons.translate_rounded, size: 20, color: AppColors.text3),
+              title: Text(tr('Language', 'भाषा', hi), style: AppTextStyles.bodyMd),
+              subtitle: Text(tr('Choose app language', 'ऐप की भाषा चुनें', hi), style: AppTextStyles.caption),
+              trailing: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(color: AppColors.saffronLight, borderRadius: BorderRadius.circular(AppRadius.full)),
+                child: Text(hi ? 'हिंदी' : 'English',
+                    style: AppTextStyles.btnSm.copyWith(color: AppColors.saffron)),
+              ),
+              onTap: () => ref.read(languageProvider.notifier).toggle(),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+            ),
+          ]),
+          const SizedBox(height: 16),
+
           // ── Automatic SMS reading ──
-          _Section(title: 'Payments', children: [
+          _Section(title: tr('Payments', 'भुगतान', hi), children: [
             SwitchListTile(
               value: smsOn,
               activeColor: AppColors.saffron,
               contentPadding: const EdgeInsets.symmetric(horizontal: 16),
               secondary: const Icon(Icons.sms_outlined, color: AppColors.text3, size: 20),
-              title: Text('Auto-read UPI SMS', style: AppTextStyles.bodyMd),
+              title: Text(tr('Auto-read UPI SMS', 'UPI SMS अपने आप पढ़ें', hi), style: AppTextStyles.bodyMd),
               subtitle: Text(
-                smsOn ? 'Reading payment SMS automatically' : 'Detect Paytm / GPay / PhonePe payments from SMS',
+                smsOn ? tr('Reading payment SMS automatically', 'भुगतान SMS अपने आप पढ़े जा रहे हैं', hi) : tr('Detect Paytm / GPay / PhonePe payments from SMS', 'SMS से Paytm / GPay / PhonePe भुगतान पहचानें', hi),
                 style: AppTextStyles.caption,
               ),
               onChanged: !isAdmin ? null : (v) async {
@@ -91,8 +112,8 @@ class SettingsScreen extends ConsumerWidget {
             const Divider(height: 0, indent: 56),
             _Tile(
               icon: Icons.inbox_outlined,
-              label: 'Review detected payments',
-              sub: 'Assign incoming UPI SMS to customers',
+              label: tr('Review detected payments', 'पहचाने गए भुगतान देखें', hi),
+              sub: tr('Assign incoming UPI SMS to customers', 'आने वाले UPI SMS ग्राहकों को सौंपें', hi),
               onTap: () => context.push('/sms-queue'),
             ),
           ]),
@@ -105,12 +126,12 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(height: 16),
 
           // ── Business tools ──
-          _Section(title: 'Business', children: [
-            _Tile(icon: Icons.person_outline_rounded, label: 'Profile', sub: 'Business info, GST, UPI ID, address', onTap: () => context.push('/profile')),
+          _Section(title: tr('Business', 'व्यापार', hi), children: [
+            _Tile(icon: Icons.person_outline_rounded, label: tr('Profile', 'प्रोफ़ाइल', hi), sub: tr('Business info, GST, UPI ID, address', 'व्यापार जानकारी, GST, UPI ID, पता', hi), onTap: () => context.push('/profile')),
             const Divider(height: 0, indent: 56),
-            _Tile(icon: Icons.inventory_2_outlined, label: 'Stock management', sub: 'Track the items you sell', onTap: () => context.push('/stock')),
+            _Tile(icon: Icons.inventory_2_outlined, label: tr('Stock management', 'स्टॉक प्रबंधन', hi), sub: tr('Track the items you sell', 'आप जो सामान बेचते हैं उसे ट्रैक करें', hi), onTap: () => context.push('/stock')),
             const Divider(height: 0, indent: 56),
-            _Tile(icon: Icons.devices_rounded, label: 'Multi device', sub: 'Use on family & staff phones', onTap: () => context.push('/multi-device')),
+            _Tile(icon: Icons.devices_rounded, label: tr('Multi device', 'कई डिवाइस', hi), sub: tr('Use on family & staff phones', 'परिवार और स्टाफ़ के फ़ोन पर इस्तेमाल करें', hi), onTap: () => context.push('/multi-device')),
           ]),
           const SizedBox(height: 16),
 
@@ -122,8 +143,8 @@ class SettingsScreen extends ConsumerWidget {
 
           // ── Data (admin only) ──
           if (isAdmin) ...[
-            _Section(title: 'Data', children: [
-              _Tile(icon: Icons.refresh_rounded, label: 'Load demo data', sub: 'Replace with sample customers', onTap: () async {
+            _Section(title: tr('Data', 'डेटा', hi), children: [
+              _Tile(icon: Icons.refresh_rounded, label: tr('Load demo data', 'डेमो डेटा लोड करें', hi), sub: tr('Replace with sample customers', 'सैंपल ग्राहकों से बदलें', hi), onTap: () async {
                 final ok = await _confirm(context, 'Load demo data?', 'This replaces your current entries with sample data.', 'Load', AppColors.saffron);
                 if (ok) {
                   await ref.read(localSourceProvider).resetToDemo();
@@ -132,7 +153,7 @@ class SettingsScreen extends ConsumerWidget {
                 }
               }),
               const Divider(height: 0, indent: 56),
-              _Tile(icon: Icons.delete_outline_rounded, label: 'Clear all data', sub: 'Erase all customers & transactions', onTap: () async {
+              _Tile(icon: Icons.delete_outline_rounded, label: tr('Clear all data', 'सारा डेटा मिटाएँ', hi), sub: tr('Erase all customers & transactions', 'सभी ग्राहक और लेन-देन मिटाएँ', hi), onTap: () async {
                 final ok = await _confirm(context, 'Clear all data?', 'This permanently erases every customer and transaction. Your shop profile and team are kept.', 'Clear all', AppColors.error);
                 if (ok) {
                   await ref.read(localSourceProvider).clearAllData();
@@ -145,10 +166,10 @@ class SettingsScreen extends ConsumerWidget {
           ],
 
           // ── About ──
-          _Section(title: 'About', children: [
+          _Section(title: tr('About', 'ऐप के बारे में', hi), children: [
             _Tile(icon: Icons.info_outline_rounded, label: 'Sangam', sub: 'Version 2.0.0'),
             const Divider(height: 0, indent: 56),
-            _Tile(icon: Icons.favorite_outline_rounded, label: 'Sab ka ek hisaab', sub: 'One ledger for UPI, cash & udhar'),
+            _Tile(icon: Icons.favorite_outline_rounded, label: 'Sab ka ek hisaab', sub: tr('One ledger for UPI, cash & udhar', 'UPI, नकद और उधार — एक ही हिसाब', hi)),
           ]),
           const SizedBox(height: 24),
 
@@ -161,7 +182,7 @@ class SettingsScreen extends ConsumerWidget {
               },
               style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.error), foregroundColor: AppColors.error),
               icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text('Log out'),
+              label: Text(tr('Log out', 'लॉग आउट', hi)),
             ),
           ),
           const SizedBox(height: 40),
@@ -491,6 +512,19 @@ class _CloudSyncSection extends ConsumerWidget {
         : (cloud.lastSync != null ? 'Last synced ${_ago(cloud.lastSync!)}' : 'Connected');
     return _Section(title: 'Cloud sync', children: [
       _Tile(icon: Icons.cloud_done_rounded, label: 'Connected · ${cloud.shopCode}', sub: last),
+      const Divider(height: 0, indent: 56),
+      _Tile(
+        icon: Icons.ios_share_rounded,
+        label: 'Share shop code',
+        sub: 'Send the code to staff to join',
+        onTap: () => Share.share(
+          'Join my shop on Sangam 🪔\n\n'
+          'Open the app → Settings → Cloud sync → Connect, and enter this shop code:\n\n'
+          '${cloud.shopCode}\n\n'
+          'We\'ll then share the same live ledger.',
+          subject: 'Sangam shop code: ${cloud.shopCode}',
+        ),
+      ),
       const Divider(height: 0, indent: 56),
       _Tile(
         icon: Icons.sync_rounded,

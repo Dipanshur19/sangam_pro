@@ -263,6 +263,27 @@ final cloudSyncProvider = StateNotifierProvider<CloudSyncNotifier, CloudSyncStat
   (ref) => CloudSyncNotifier(ref),
 );
 
+// ── Language (English / Hindi) ────────────────────────
+class LanguageNotifier extends StateNotifier<bool> {
+  static const _key = 'sangam_lang_hi';
+  LanguageNotifier() : super(false) {
+    _load();
+  }
+  Future<void> _load() async {
+    final p = await SharedPreferences.getInstance();
+    state = p.getBool(_key) ?? false;
+  }
+  Future<void> setHindi(bool v) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setBool(_key, v);
+    state = v;
+  }
+  void toggle() => setHindi(!state);
+}
+
+/// true = Hindi, false = English.
+final languageProvider = StateNotifierProvider<LanguageNotifier, bool>((ref) => LanguageNotifier());
+
 // ── Local source with demo data ───────────────────────
 class LocalSource {
   static const _custsKey  = 'sangam_custs';
