@@ -51,12 +51,22 @@ android {
     }
 
     signingConfigs {
+        // Force BOTH v1 (JAR) and v2 signatures. Some OEM installers
+        // (Realme/Oppo ColorOS, certain MIUI builds) reject v2-only APKs
+        // and silently fail to install/open. Enabling v1 too makes the APK
+        // install on essentially every Android phone.
+        debug {
+            enableV1Signing true
+            enableV2Signing true
+        }
         if (hasKeystore) {
             release {
                 keyAlias keystoreProperties['keyAlias']
                 keyPassword keystoreProperties['keyPassword']
                 storeFile keystoreProperties['storeFile'] ? file(keystoreProperties['storeFile']) : null
                 storePassword keystoreProperties['storePassword']
+                enableV1Signing true
+                enableV2Signing true
             }
         }
     }
